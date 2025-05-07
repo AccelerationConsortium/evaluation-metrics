@@ -61,7 +61,7 @@ LOO-PL evaluates the predictive accuracy by systematically holding out each trai
 **Mathematical Basis:**
 For a Gaussian Process model, the leave-one-out predictive log probability for point *i* is (Rasmussen & Williams (2006), eq 5.10):
 
-$$\log p\bigl(y_i \mid X, y_{-i},\theta\bigr) = -\tfrac12\log \sigma_i^{2} -\tfrac{\bigl(y_i - \mu_i\bigr)^2}{2\,\sigma_i^{2}}-\tfrac12\,\log 2\pi,$$
+$$\log p\bigl(y_i \mid X, y_{-i},\theta\bigr) = -\tfrac12\log \sigma_i^{2} -\tfrac{\bigl(y_i - \mu_i\bigr)^2}{2\sigma_i^{2}}-\tfrac12\log 2\pi,$$
 
 with
 
