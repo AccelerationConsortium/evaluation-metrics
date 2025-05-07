@@ -1,0 +1,17 @@
+[project]
+name = "bo-space-filling-vs-model-driven"
+version = "0.1.0"
+description = """A few metrics that could potentially be used to assess model performance and whether
+it's better to create space-filling or model-driven designs"""
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "botorch>=0.13.0",
+    "gpytorch>=1.14",
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "plotly>=6.0.1",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.15.2",
+    "torch>=2.7.0",
+]
