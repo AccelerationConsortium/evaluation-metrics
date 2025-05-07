@@ -61,24 +61,15 @@ LOO-PL evaluates the predictive accuracy by systematically holding out each trai
 **Mathematical Basis:**
 For a Gaussian Process model, the leave-one-out predictive log probability for point *i* is (Rasmussen & Williams (2006), eq 5.10):
 
-$$
-\log p\bigl(y_i \mid X,\,y_{-i},\theta\bigr)
-=
--\tfrac12\,\log \sigma_i^{2}
--\tfrac{\bigl(y_i - \mu_i\bigr)^2}{2\,\sigma_i^{2}}
--\tfrac12\,\log 2\pi,
-$$
+$$\log p\bigl(y_i \mid X,\,y_{-i},\theta\bigr) = -\tfrac12\,\log \sigma_i^{2} -\tfrac{\bigl(y_i - \mu_i\bigr)^2}{2\,\sigma_i^{2}}-\tfrac12\,\log 2\pi,$$
 
 with
 
-$$
-\mu_i = y_i - \frac{\bigl[K^{-1}y\bigr]_i}{\bigl[K^{-1}\bigr]_{ii}}, \qquad
-$$
+$$\mu_i = y_i - \frac{\bigl[K^{-1}y\bigr]_i}{\bigl[K^{-1}\bigr]_{ii}}, \qquad$$
 
-and 
-$$
-\sigma_i^{2} = \frac{1}{\bigl[K^{-1}\bigr]_{ii}}.
-$$
+and
+
+$$\sigma_i^{2} = \frac{1}{\bigl[K^{-1}\bigr]_{ii}}.$$
 
 The total LOO-PL is then the sum over all points (Rasmussen & Williams (2006), eq 5.11):
 
@@ -86,7 +77,7 @@ $$\text{LOO-PL} = \sum_{i=1}^n \log p(y_i | X, y_{-i}, \theta)$$
 
 Note that while Rasmussen & Williams (2006) use the sum, the implementation in this repo implementation takes the mean by dividing by *n*:
 
-$$\text{LOO-PL}_{\text{mean}} = -\frac{1}{n}\sum_{i=1}^n \log p(y_i | X, y_{-i})$$
+$$\text{LOO-PL}_{\text{mean}} = -\frac{1}{n}\sum_{i=1}^n \log p(y_i | X, y_{-i}, \theta)$$
 
 This normalization has several practical advantages:
 
