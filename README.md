@@ -59,11 +59,11 @@ This metric can help to determine whether the model has correctly learned the in
 LOO-PL evaluates the predictive accuracy by systematically holding out each training point and predicting it using a model trained on all remaining points. This metric is based on the work of Rasmussen & Williams (2006) and can be efficiently computed using GPyTorch's `LeaveOneOutPseudoLikelihood` function.
 
 **Mathematical Basis:**
-For a Gaussian Process model, the leave-one-out predictive log probability for point $i$ is (Rasmussen & Williams (2006), eq 5.10):
+For a Gaussian Process model, the leave-one-out predictive log probability for point *i* is (Rasmussen & Williams (2006), eq 5.10):
 
 $$
 \log p\bigl(y_i \mid X,\,y_{-i},\theta\bigr)
-\;=\;
+=
 -\tfrac12\,\log \sigma_i^{2}
 -\tfrac{\bigl(y_i - \mu_i\bigr)^2}{2\,\sigma_i^{2}}
 -\tfrac12\,\log 2\pi,
@@ -73,6 +73,10 @@ with
 
 $$
 \mu_i = y_i - \frac{\bigl[K^{-1}y\bigr]_i}{\bigl[K^{-1}\bigr]_{ii}}, \qquad
+$$
+
+and 
+$$
 \sigma_i^{2} = \frac{1}{\bigl[K^{-1}\bigr]_{ii}}.
 $$
 
