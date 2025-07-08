@@ -1,10 +1,11 @@
 [project]
-name = "bo-space-filling-vs-model-driven"
+name = "gpcheck"
 version = "0.1.0"
 description = """A few metrics that could potentially be used to assess model performance and whether
 it's better to create space-filling or model-driven designs"""
 readme = "README.md"
 requires-python = ">=3.13"
+
 dependencies = [
     "botorch>=0.13.0",
     "gpytorch>=1.14",
@@ -15,3 +16,80 @@ dependencies = [
     "scipy>=1.15.2",
     "torch>=2.7.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pyright>=1.1.402",
+    "pytest-mock>=3.14.1",
+    "pytest>=8.4.1",
+    "ruff>=0.12.2",
+    "pytest-cov>=6.2.1",
+    "jupytext>=1.17.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
+[tool.pyright]
+include = ["src"]
+exclude = [".venv"]
+venvPath = "."
+venv = ".venv"
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+
+
+[tool.ruff]
+lint.select = ["E", "F", "I"]
+lint.fixable = ["I"]
+lint.extend-fixable = ["I"]
+line-length = 100
+fix = true
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gpcheck"]
+force-sort-within-sections = true
+combine-as-imports = true
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
