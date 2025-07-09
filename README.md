@@ -2,7 +2,7 @@
 
 ## Introduction: GP model assessment in Bayesian Optimization
 
-In iterative product and process development, Bayesian Optimisation (BO) has emerged as a powerful methodology for efficiently navigating complex parameter spaces. BO typically relies on Gaussian Process (GP) models to construct surrogate representations of expensive‑to‑evaluate objective functions. The effectiveness of any BO procedure is therefore tied to the quality of its underlying GP.
+In iterative product and process development, Bayesian Optimization (BO) has emerged as a powerful methodology for efficiently navigating complex parameter spaces. BO typically relies on Gaussian Process (GP) models to construct surrogate representations of expensive‑to‑evaluate objective functions. The effectiveness of any BO procedure is therefore tied to the quality of its underlying GP.
 
 This document collects a set of metrics that can be used to evaluate a GP model's performance.  It is almost certainly incomplete, so contributions are very welcome – especially real‑world thresholds and domain‑specific best practices (e.g. "we deploy when $R^2 > 0.7$").
 
