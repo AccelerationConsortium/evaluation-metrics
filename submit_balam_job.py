@@ -1,118 +1,94 @@
 #!/usr/bin/env python3
 """
-Simple script to submit a test job to BALAM cluster.
+Simple script to submit a test job to BALAM cluster using submitit.
 Run this script from a BALAM login node.
 """
 
-import subprocess
-import sys
 import os
+import sys
+import time
 from pathlib import Path
 
-def create_test_job_script():
-    """Create a simple SLURM job script for testing."""
-    job_script = """#!/bin/bash
-#SBATCH --job-name=test_job
-#SBATCH --time=00:05:00
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=1G
-#SBATCH --output=test_job_%j.out
-#SBATCH --error=test_job_%j.err
+try:
+    import submitit
+except ImportError:
+    print("Error: submitit not installed. Run: pip install submitit")
+    sys.exit(1)
 
-echo "Starting test job on $(hostname)"
-echo "Current date: $(date)"
-echo "Python version: $(python3 --version)"
-echo "Working directory: $(pwd)"
-echo "Environment modules:"
-module list
 
-# Simple test computation
-python3 -c "
-import time
-import sys
-print('Python test starting...')
-for i in range(5):
-    print(f'Step {i+1}/5')
-    time.sleep(1)
-print('Python test completed successfully!')
-print('Job finished at:', time.strftime('%Y-%m-%d %H:%M:%S'))
-"
-
-echo "Test job completed on $(hostname)"
-"""
+def test_function():
+    """Simple test function to run on the cluster."""
+    import time
+    import socket
+    import sys
     
-    with open("test_job.sh", "w") as f:
-        f.write(job_script)
+    print(f"Test job starting on {socket.gethostname()}")
+    print(f"Current time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Python version: {sys.version}")
+    print(f"Working directory: {os.getcwd()}")
     
-    # Make executable
-    os.chmod("test_job.sh", 0o755)
-    print("Created test_job.sh")
+    # Simple computation
+    print("Running test computation...")
+    for i in range(5):
+        print(f"Step {i+1}/5")
+        time.sleep(1)
+    
+    result = sum(range(1000))
+    print(f"Computation result: {result}")
+    print(f"Test job completed at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    return {"status": "success", "result": result, "hostname": socket.gethostname()}
 
-def submit_job():
-    """Submit the job using sbatch."""
-    try:
-        result = subprocess.run(
-            ["sbatch", "test_job.sh"], 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
-        print(f"Job submitted successfully!")
-        print(f"Output: {result.stdout.strip()}")
-        
-        # Extract job ID from output like "Submitted batch job 12345"
-        job_id = result.stdout.strip().split()[-1]
-        print(f"Job ID: {job_id}")
-        
-        return job_id
-        
-    except subprocess.CalledProcessError as e:
-        print(f"Error submitting job: {e}")
-        print(f"Error output: {e.stderr}")
-        return None
-
-def check_job_status(job_id):
-    """Check the status of the submitted job."""
-    try:
-        result = subprocess.run(
-            ["squeue", "-j", job_id], 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
-        print(f"\nJob status:")
-        print(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error checking job status: {e}")
 
 def main():
-    print("BALAM Test Job Submission Script")
-    print("=" * 40)
+    print("BALAM Test Job Submission Script (using submitit)")
+    print("=" * 50)
     
-    # Check if we're on a SLURM system
-    if subprocess.run(["which", "sbatch"], capture_output=True).returncode != 0:
-        print("Error: sbatch command not found. Are you on a SLURM system?")
+    # Check for required environment variables
+    if not os.getenv("SLURM_ACCOUNT"):
+        print("Error: SLURM_ACCOUNT environment variable must be set")
+        print("Run: export SLURM_ACCOUNT=your-account-name")
         sys.exit(1)
     
-    # Create the job script
-    create_test_job_script()
+    # Create submitit executor
+    executor = submitit.AutoExecutor(folder="./submitit_logs")
+    
+    # Configure SLURM parameters
+    executor.update_parameters(
+        slurm_job_name="balam_test",
+        slurm_time=5,  # 5 minutes
+        slurm_ntasks=1,
+        slurm_cpus_per_task=1,
+        slurm_mem="1G",
+        slurm_account=os.getenv("SLURM_ACCOUNT")
+    )
+    
+    print(f"Submitting job with account: {os.getenv('SLURM_ACCOUNT')}")
+    print("Job parameters:")
+    print("  Time: 5 minutes")
+    print("  CPUs: 1")
+    print("  Memory: 1G")
     
     # Submit the job
-    job_id = submit_job()
+    job = executor.submit(test_function)
     
-    if job_id:
-        print(f"\nJob {job_id} submitted. Use 'squeue -u $USER' to check status.")
-        print(f"Output will be in: test_job_{job_id}.out")
-        print(f"Errors will be in: test_job_{job_id}.err")
-        
-        # Check initial status
-        check_job_status(job_id)
-        
-        print(f"\nTo monitor the job:")
-        print(f"  squeue -j {job_id}")
-        print(f"  tail -f test_job_{job_id}.out")
+    print(f"\nJob submitted successfully!")
+    print(f"Job ID: {job.job_id}")
+    print(f"Log directory: ./submitit_logs")
+    
+    # Show how to check status
+    print(f"\nTo check job status:")
+    print(f"  squeue -j {job.job_id}")
+    print(f"  # or in Python: job.state")
+    
+    print(f"\nTo get results (after completion):")
+    print(f"  # job.result()  # blocks until completion")
+    
+    # Optionally wait a bit and show status
+    print(f"\nCurrent job state: {job.state}")
+    
+    return job
+
 
 if __name__ == "__main__":
     main()
