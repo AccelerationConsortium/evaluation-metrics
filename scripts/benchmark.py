@@ -30,7 +30,7 @@ def run_single_benchmark(num_init_trials: int = 5, num_opt_steps: int = 20, seed
         seed: Random seed for reproducibility
         
     Returns:
-        dict: Results including trajectory and final best value
+        dict: Results including trajectory, metadata, and GP predictions for all data
     """
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -47,6 +47,7 @@ def run_single_benchmark(num_init_trials: int = 5, num_opt_steps: int = 20, seed
     y = y_init.clone()
     
     trajectory = []
+    metadata = []
     
     # Record initial best
     best_y = y.min().item()
@@ -61,6 +62,26 @@ def run_single_benchmark(num_init_trials: int = 5, num_opt_steps: int = 20, seed
         gp = SingleTaskGP(X_norm, y.unsqueeze(-1))
         mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
         fit_gpytorch_mll(mll)
+        
+        # Get predictions for all current data points
+        gp.eval()
+        with torch.no_grad():
+            posterior = gp.posterior(X_norm)
+            means = posterior.mean.squeeze(-1)
+            variances = posterior.variance.squeeze(-1)
+            uncertainties = variances.sqrt()
+        
+        # Store metadata for this step
+        step_metadata = {
+            "step": step,
+            "X": X.numpy().tolist(),
+            "y": y.numpy().tolist(),
+            "predicted_means": means.numpy().tolist(),
+            "predicted_uncertainties": uncertainties.numpy().tolist(),
+            "num_init_trials": num_init_trials,
+            "current_best": y.min().item()
+        }
+        metadata.append(step_metadata)
         
         # Optimize acquisition function
         EI = ExpectedImprovement(gp, best_f=y.max())
@@ -84,5 +105,9 @@ def run_single_benchmark(num_init_trials: int = 5, num_opt_steps: int = 20, seed
         "trajectory": trajectory,
         "final_best": best_y,
         "num_init_trials": num_init_trials,
-        "total_evaluations": len(y)
+        "total_evaluations": len(y),
+        "metadata": metadata,
+        "final_X": X.numpy().tolist(),
+        "final_y": y.numpy().tolist(),
+        "seed": seed
     }

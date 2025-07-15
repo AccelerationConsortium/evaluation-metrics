@@ -1,2 +1,1 @@
-# Temporarily simplified imports
-from . import data, metrics, models, visualization
+from gpcheck import data, metrics, models, visualization
