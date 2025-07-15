@@ -8,12 +8,7 @@ import os
 import submitit
 import cloudpickle as pickle
 
-
-def test_function():
-    """Simple test function to run on the cluster."""
-    import time
-    result = sum(range(1000))
-    return {"status": "success", "result": result}
+from test_module import test_function
 
 
 def main():
