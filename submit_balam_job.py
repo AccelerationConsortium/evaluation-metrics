@@ -5,8 +5,8 @@ Run this script from a BALAM login node.
 """
 
 import os
+
 import submitit
-import cloudpickle as pickle
 
 from test_module import test_function
 
@@ -37,5 +37,3 @@ def main():
     return job
 
 
-if __name__ == "__main__":
-    main()
