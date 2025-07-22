@@ -73,3 +73,9 @@ play_*.py
 
 # output csv files
 *_results.csv
+
+# submitit logs and job files
+**/submitit_logs/
+*.pkl
+*.out
+*.err
