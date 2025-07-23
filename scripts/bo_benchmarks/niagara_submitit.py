@@ -17,7 +17,7 @@ from benchmark_functions import evaluate_benchmark
 
 # Configuration - modify these as needed
 FUNCTION_NAME = "branin"  # or "hartmann6"
-LOCAL_TEST = False  # Set to True for local testing
+LOCAL_TEST = True  # Set to True for local testing
 DUMMY_MODE = False  # Set to True for small test runs
 
 if DUMMY_MODE:
@@ -60,12 +60,13 @@ def generate_parameter_sets(function_name):
         {"name": "function", "type": "fixed", "value": function_name}
     ]
     
+    from ax.service.utils.instantiation import ObjectiveProperties
+    
     ax_client = AxClient()
     ax_client.create_experiment(
         name=f"{function_name}_sobol",
         parameters=parameters,
-        objective_name="value",
-        minimize=True,
+        objectives={"value": ObjectiveProperties(minimize=True)},
     )
     
     search_space = ax_client.experiment.search_space
