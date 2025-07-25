@@ -136,16 +136,15 @@ def submit_niagara_benchmark(function_name):
     parameter_batch_sets = list(chunks(parameter_sets, batch_size))
     
     # Configure submitit for Niagara
-    log_folder = f"submitit_logs/bo_benchmarks/{function_name}/%j"
+    log_folder = "/scratch/s/sgbaird/sgbaird/submitit_logs/bo_benchmarks/%j"
     
     executor = AutoExecutor(folder=log_folder)
     executor.update_parameters(
         timeout_min=walltime_min,
+        cpus_per_task=1,  # 1 CPU per task
         slurm_partition="compute",  # Niagara compute partition
-        slurm_additional_parameters={
-            "ntasks": 1,
-            "account": os.getenv("SLURM_ACCOUNT", "def-xxx"),  # Replace with your allocation
-        },
+        slurm_account=os.getenv("SLURM_ACCOUNT", "def-sgbaird"),  # Use environment or default
+        slurm_job_name=f"bo_benchmark_{function_name}"
     )
     
     print(f"Submitting {len(parameter_batch_sets)} batch jobs for {function_name}")
