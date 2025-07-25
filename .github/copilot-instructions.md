@@ -28,4 +28,8 @@
 - Don't infer requirements or create workarounds unless asked
 - Put documentation content in comment replies, not separate files, unless asked
 
+## Repo-specific
+
+- Activate the `balam-env` conda environment before running code
+
 <!--- add as .github/copilot-instructions.md, see https://docs.github.com/en/enterprise-cloud@latest/copilot/using-github-copilot/coding-agent/best-practices-for-using-copilot-to-work-on-tasks for additional context --->
