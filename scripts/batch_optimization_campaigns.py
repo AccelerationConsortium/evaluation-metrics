@@ -7,8 +7,8 @@ import submitit
 from pathlib import Path
 
 # Add the bo_benchmarks directory to Python path
-scripts_dir = Path(__file__).parent / "scripts" / "bo_benchmarks"
-sys.path.insert(0, str(scripts_dir))
+bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
+sys.path.insert(0, str(bo_benchmarks_dir))
 
 from benchmark_functions import evaluate_benchmark
 import numpy as np
