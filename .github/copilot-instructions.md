@@ -30,6 +30,10 @@
 
 ## Repo-specific
 
-- Activate the `balam-env` conda environment before running code
+- Activate the `balam-env` conda environment before running code (even if running on Niagara) or use a venv
+- When asked to SSH into BALAM, use `sgbaird@balam.scinet.utoronto.ca` and the `CCDB_SSH_PRIVATE_KEY`
+- When asked to SSH into Niagara, use `sgbaird@niagara.scinet.utoronto.ca` and the same `CCDB_SSH_PRIVATE_KEY`
+- Running test scripts locally is fine, but the only success metric is submitting jobs to the cluster via submitit and having those jobs complete successfully on the corresponding compute nodes with the right dependencies available. Nothing else counts
+- Use the perplexity MCP tool to refer to the BALAM (https://docs.scinet.utoronto.ca/index.php/Balam) and Niagara (https://docs.scinet.utoronto.ca/index.php/Niagara_Quickstart) docs to ensure consistency with cluster-specific requirements
 
 <!--- add as .github/copilot-instructions.md, see https://docs.github.com/en/enterprise-cloud@latest/copilot/using-github-copilot/coding-agent/best-practices-for-using-copilot-to-work-on-tasks for additional context --->
