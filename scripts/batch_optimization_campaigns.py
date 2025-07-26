@@ -69,7 +69,8 @@ def run_optimization_campaign(campaign_name, function_name, iterations, campaign
     }
 
 def main():
-    print("=== Submitting 3 Optimization Campaigns to Niagara ===\n")
+    print("=== Submitting 3 Optimization Campaigns to Niagara ===")
+    print()
     
     # Setup scratch directory for logs
     scratch_dir = os.environ.get("SCRATCH", "/tmp")

@@ -26,7 +26,7 @@ if DUMMY_MODE:
     batch_size = 2
     walltime_min = 15
 else:
-    num_sobol_samples = 1024
+    num_sobol_samples = 15
     num_repeats = 5
     batch_size = 50
     walltime_min = 120
@@ -41,14 +41,14 @@ FUNCTION_CONFIGS = {
             {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
             {"name": "x2", "type": "range", "bounds": [0.0, 15.0]},
         ],
-        "global_min": 0.397887
+        "global_min": 0.39788735772973816
     },
     "hartmann6": {
         "parameters": [
             {"name": f"x{i+1}", "type": "range", "bounds": [0.0, 1.0]}
             for i in range(6)
         ],
-        "global_min": -3.32237
+        "global_min": -3.3223699212379664
     }
 }
 
@@ -90,7 +90,9 @@ def generate_parameter_sets(function_name):
 
 
 def mongodb_evaluate(parameters, verbose=False):
-    """Evaluate and optionally store to MongoDB."""
+    """Evaluate and store to MongoDB. Required environment variables:
+    - MONGODB_URI: MongoDB connection string
+    """
     utc = datetime.utcnow()
     
     result = {
@@ -103,13 +105,15 @@ def mongodb_evaluate(parameters, verbose=False):
         "num_repeats": num_repeats,
     }
     
-    # Optional MongoDB storage
+    # MongoDB storage is required
     mongodb_uri = os.getenv("MONGODB_URI")
-    if mongodb_uri:
-        import pymongo
-        client = pymongo.MongoClient(mongodb_uri)
-        client["bo_benchmarks"]["benchmark_results"].insert_one(result.copy())
-        client.close()
+    if not mongodb_uri:
+        raise ValueError("MONGODB_URI environment variable is required")
+    
+    import pymongo
+    client = pymongo.MongoClient(mongodb_uri)
+    client["bo_benchmarks"]["benchmark_results"].insert_one(result.copy())
+    client.close()
     
     return result
 
@@ -125,33 +129,39 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def submit_niagara_benchmark(function_name):
-    """Submit benchmark jobs to Niagara cluster."""
+def submit_niagara_benchmark(function_names=None):
+    """Submit benchmark jobs to Niagara cluster for all functions."""
+    if function_names is None:
+        function_names = list(FUNCTION_CONFIGS.keys())
     
-    # Generate parameter sets
-    parameter_sets = generate_parameter_sets(function_name)
-    if DUMMY_MODE:
-        parameter_sets = parameter_sets[:10]
+    all_jobs = []
     
-    parameter_batch_sets = list(chunks(parameter_sets, batch_size))
+    for function_name in function_names:
+        # Generate parameter sets for this function
+        parameter_sets = generate_parameter_sets(function_name)
+        if DUMMY_MODE:
+            parameter_sets = parameter_sets[:10]
+        
+        parameter_batch_sets = list(chunks(parameter_sets, batch_size))
+        
+        # Configure submitit for Niagara
+        log_folder = "/scratch/s/sgbaird/sgbaird/submitit_logs/bo_benchmarks/%j"
+        
+        executor = AutoExecutor(folder=log_folder)
+        executor.update_parameters(
+            timeout_min=walltime_min,
+            cpus_per_task=1,  # 1 CPU per task
+            slurm_partition="compute",  # Niagara compute partition
+            slurm_account=os.getenv("SLURM_ACCOUNT", "def-sgbaird"),
+            slurm_job_name=f"bo_benchmark_{function_name}"
+        )
+        
+        print(f"Submitting {len(parameter_batch_sets)} batch jobs for {function_name}")
+        jobs = executor.map_array(mongodb_evaluate_batch, parameter_batch_sets)
+        print(f"Submitted jobs: {[job.job_id for job in jobs]}")
+        all_jobs.extend(jobs)
     
-    # Configure submitit for Niagara
-    log_folder = "/scratch/s/sgbaird/sgbaird/submitit_logs/bo_benchmarks/%j"
-    
-    executor = AutoExecutor(folder=log_folder)
-    executor.update_parameters(
-        timeout_min=walltime_min,
-        cpus_per_task=1,  # 1 CPU per task
-        slurm_partition="compute",  # Niagara compute partition
-        slurm_account=os.getenv("SLURM_ACCOUNT", "def-sgbaird"),  # Use environment or default
-        slurm_job_name=f"bo_benchmark_{function_name}"
-    )
-    
-    print(f"Submitting {len(parameter_batch_sets)} batch jobs for {function_name}")
-    jobs = executor.map_array(mongodb_evaluate_batch, parameter_batch_sets)
-    print(f"Submitted jobs: {[job.job_id for job in jobs]}")
-    
-    return jobs
+    return all_jobs
 
 
 # Run the benchmark
@@ -161,6 +171,6 @@ if LOCAL_TEST:
     results = [mongodb_evaluate(p, verbose=True) for p in parameter_sets]
     print(f"Local test completed. Sample results: {results[:2]}")
 else:
-    # Submit to cluster
-    jobs = submit_niagara_benchmark(FUNCTION_NAME)
-    print(f"Submitted {len(jobs)} jobs to Niagara cluster")
+    # Submit to cluster for all functions
+    jobs = submit_niagara_benchmark()
+    print(f"Submitted {len(jobs)} total jobs to Niagara cluster")
