@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Simple optimization test for Niagara cluster using ax-platform.
-Usage: python niagara_test_simple.py [--local]
+Simple optimization test for Niagara cluster using submitit and ax-platform.
+Usage: 
+  python niagara_test_simple.py --local     # Test locally
+  python niagara_test_simple.py --submit    # Submit to Niagara cluster
 """
 
 import sys
@@ -50,12 +52,9 @@ def run_optimization():
         print(f"Fallback result: f={best_val:.6f}")
         return {"x1": -3.14, "x2": 12.27}, best_val
 
-def main():
-    parser = argparse.ArgumentParser(description='Niagara optimization test')
-    parser.add_argument('--local', action='store_true', help='Local test mode')
-    args = parser.parse_args()
-    
-    print("=== Niagara Optimization Test ===")
+def optimization_job():
+    """Job function for submitit."""
+    print("=== Niagara Optimization Job ===")
     if 'SLURM_JOB_ID' in os.environ:
         print(f"SLURM Job ID: {os.environ['SLURM_JOB_ID']}")
         print(f"Node: {os.environ.get('SLURMD_NODENAME', 'unknown')}")
@@ -65,7 +64,65 @@ def main():
     print(f"\n=== Final Result ===")
     print(f"Best parameters: {best_params}")
     print(f"Best value: {best_value}")
-    print("=== Test Complete ===")
+    print("=== Job Complete ===")
+    
+    return {"best_params": best_params, "best_value": best_value}
+
+def submit_to_niagara():
+    """Submit job to Niagara using submitit."""
+    try:
+        import submitit
+        
+        # Create executor for Niagara
+        log_folder = os.path.expanduser("~/scratch/submitit_logs")
+        os.makedirs(log_folder, exist_ok=True)
+        
+        executor = submitit.AutoExecutor(folder=log_folder)
+        executor.update_parameters(
+            slurm_job_name="niagara_test",
+            timeout_min=10,
+            slurm_partition="compute",
+            nodes=1,
+            tasks_per_node=1,
+            cpus_per_task=1
+        )
+        
+        print(f"Submitting job to Niagara cluster...")
+        print(f"Log folder: {log_folder}")
+        
+        # Submit the job
+        job = executor.submit(optimization_job)
+        print(f"✓ Job submitted with ID: {job.job_id}")
+        
+        # Wait for completion (optional - can be removed for async)
+        print("Waiting for job completion...")
+        result = job.result()
+        print(f"✓ Job completed successfully!")
+        print(f"Result: {result}")
+        
+        return job.job_id, result
+        
+    except ImportError:
+        print("✗ submitit not available. Please install: pip install submitit")
+        return None, None
+    except Exception as e:
+        print(f"✗ Job submission failed: {e}")
+        return None, None
+
+def main():
+    parser = argparse.ArgumentParser(description='Niagara optimization test')
+    parser.add_argument('--local', action='store_true', help='Run locally')
+    parser.add_argument('--submit', action='store_true', help='Submit to Niagara cluster')
+    args = parser.parse_args()
+    
+    if args.submit:
+        job_id, result = submit_to_niagara()
+        if job_id:
+            print(f"Niagara job {job_id} completed with result: {result}")
+    else:
+        # Local test
+        print("=== Local Test Mode ===")
+        optimization_job()
 
 if __name__ == "__main__":
     main()
