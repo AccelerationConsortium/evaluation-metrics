@@ -36,5 +36,6 @@
 - Running test scripts locally is fine, but the only success metric is submitting jobs to the cluster via submitit and having those jobs complete successfully on the corresponding compute nodes with the right dependencies available. Nothing else counts
 - Use the perplexity MCP tool to refer to the BALAM (https://docs.scinet.utoronto.ca/index.php/Balam) and Niagara (https://docs.scinet.utoronto.ca/index.php/Niagara_Quickstart) docs to ensure consistency with cluster-specific requirements
 - After SSH'ing into the cluster, make sure to type "1" and "press enter" to trigger the Duo authentication step, which I'll approve manually on my end
+- Don't create any command line interfaces unless explicitly requested
 
 <!--- add as .github/copilot-instructions.md, see https://docs.github.com/en/enterprise-cloud@latest/copilot/using-github-copilot/coding-agent/best-practices-for-using-copilot-to-work-on-tasks for additional context --->
