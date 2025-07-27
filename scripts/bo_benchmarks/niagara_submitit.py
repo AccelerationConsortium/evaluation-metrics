@@ -112,7 +112,19 @@ def mongodb_evaluate(parameters, verbose=False):
     
     import pymongo
     client = pymongo.MongoClient(mongodb_uri)
-    client["bo_benchmarks"]["benchmark_results"].insert_one(result.copy())
+    
+    # Create database and collection if they don't exist
+    db = client["bo_benchmarks"]
+    collection = db["benchmark_results"]
+    
+    # Ensure collection exists and create basic index on timestamp for performance
+    if "benchmark_results" not in db.list_collection_names():
+        collection.create_index("timestamp")
+        collection.create_index("session_id")
+        collection.create_index("function")
+    
+    # Insert the result
+    collection.insert_one(result.copy())
     client.close()
     
     return result
