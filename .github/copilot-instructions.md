@@ -35,7 +35,7 @@
 - When asked to SSH into Niagara, use `sgbaird@niagara.scinet.utoronto.ca` and the same `CCDB_SSH_PRIVATE_KEY`
 - Running test scripts locally is fine, but the only success metric is submitting jobs to the cluster via submitit and having those jobs complete successfully on the corresponding compute nodes with the right dependencies available. Nothing else counts
 - Use the perplexity MCP tool to refer to the BALAM (https://docs.scinet.utoronto.ca/index.php/Balam) and Niagara (https://docs.scinet.utoronto.ca/index.php/Niagara_Quickstart) docs to ensure consistency with cluster-specific requirements
-- After SSH'ing into the cluster, make sure to type "1" and "press enter" to trigger the Duo authentication step, which I'll approve manually on my end
+- After SSH'ing into the cluster, make sure to type "1" and "press enter" to trigger the Duo authentication step, which I'll approve manually on my end (wait up to 60s)
 - Don't create any command line interfaces unless explicitly requested
 - If the SSH bash output gets too long and unwieldy, you can log out and recreate the SSH connection to refresh the terminal text
 
