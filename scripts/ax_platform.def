@@ -1,0 +1,68 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+    # Update base system
+    apt-get update && apt-get upgrade -y
+
+    # Install essential system packages
+    apt-get install -y \
+        python3 \
+        python3-pip \
+        python3-venv \
+        python3-dev \
+        git \
+        build-essential \
+        cmake \
+        wget \
+        curl
+
+    # Upgrade pip to latest version
+    python3 -m pip install --upgrade pip
+
+    # Install scientific computing stack
+    python3 -m pip install numpy scipy pandas matplotlib seaborn
+
+    # Install PyTorch (CPU-only for compatibility)
+    python3 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+    # Install Ax Platform and dependencies
+    python3 -m pip install ax-platform botorch gpytorch
+
+    # Install additional optimization packages
+    python3 -m pip install scikit-optimize skopt
+
+    # Install utilities for job submission
+    python3 -m pip install submitit pymongo
+
+    # Clean up to reduce image size
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    python3 -m pip cache purge
+
+%environment
+    export LC_ALL=C
+    export PATH="/usr/local/bin:$PATH"
+    export PYTHONPATH="/usr/local/lib/python3.10/site-packages:$PYTHONPATH"
+
+%labels
+    Author SciNet-Optimization-Framework
+    Version v1.0
+    Description "Apptainer container for ax-platform optimization with GLIBC 2.34"
+    GLIBC_Version "2.34"
+    Ubuntu_Version "22.04"
+
+%help
+    This container provides a complete optimization environment with:
+    - Python 3.10
+    - PyTorch 2.x (CPU-only)
+    - Ax Platform for Bayesian optimization
+    - BoTorch and GPyTorch for Gaussian processes
+    - submitit for SLURM job submission
+    - Ubuntu 22.04 base with GLIBC 2.34
+
+    Usage:
+        apptainer exec ax_platform.sif python3 your_script.py
+
+    For interactive use:
+        apptainer shell ax_platform.sif
