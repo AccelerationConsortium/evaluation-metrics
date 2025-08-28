@@ -272,29 +272,38 @@ if all_metrics:
     ax2_twin2.spines['right'].set_position(('outward', 60))
     ax2_twin3.spines['right'].set_position(('outward', 120))
     
+    # Add overlaid best-so-far trace (faded gray, semi-transparent)
+    best_so_far = np.minimum.accumulate(df[objectives])
+    ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
+             label='Best so far', linestyle='-', zorder=1)
+    
     # Plot main metrics
-    line1 = ax2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2)
-    line2 = ax2_twin1.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2)
-    line3 = ax2_twin2.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2)
+    line1 = ax2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
+    line2 = ax2_twin1.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
+    line3 = ax2_twin2.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
     
     # Plot Ax CV R² if available
     lines = line1 + line2 + line3
     if ax_cv_r2_values:
         line4 = ax2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
-                        linewidth=2, linestyle='--')
+                        linewidth=2, linestyle='--', zorder=3)
         lines += line4
     
     # Plot GP-based interval score if available  
     if interval_score_values:
         line5 = ax2_twin3.plot(interval_trial_nums, interval_score_values, 'purple', label='GP Interval Score', 
-                              marker='v', linewidth=2, linestyle=':')
+                              marker='v', linewidth=2, linestyle=':', zorder=3)
         lines += line5
     
     # Plot Ax CV interval score if available
     if ax_cv_interval_score_values:
         line6 = ax2_twin3.plot(ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'magenta', 
-                              label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.')
+                              label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.', zorder=3)
         lines += line6
+        
+    # Add best-so-far line to the legend
+    best_line = [plt.Line2D([0], [0], color='gray', linewidth=6, alpha=0.3, label='Best so far')]
+    lines = best_line + lines
         
     ax2_twin3.set_ylabel("Interval Score", color='purple')
     ax2_twin3.tick_params(axis='y', labelcolor='purple')
@@ -315,6 +324,7 @@ if all_metrics:
     ax2.legend(lines, labels, loc='upper left')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
+    print(f"Rank tau correlation values: {rank_tau_values}")
     if ax_cv_r2_values:
         print(f"Ax Cross Validation R² values: {ax_cv_r2_values}")
     if interval_score_values:
