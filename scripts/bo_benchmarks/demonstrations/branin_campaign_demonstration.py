@@ -7,7 +7,8 @@ This script demonstrates proper use of ax-platform with GP evaluation metrics ca
 import numpy as np
 import pandas as pd
 from ax.service.ax_client import AxClient, ObjectiveProperties
-from ax.adapter.cross_validation import cross_validate
+from ax.modelbridge.cross_validation import cross_validate
+from ax.plot.diagnostic import interact_cross_validation_plotly
 import matplotlib.pyplot as plt
 import torch
 from gpcheck.models import GPModel, GPConfig
@@ -63,44 +64,30 @@ def calculate_ax_cross_validation_metrics(ax_client):
         if ax_client.generation_strategy.current_step_index == 0:
             return None, None
             
-        # Get the adapter from the generation strategy - this is the correct approach
-        adapter = ax_client.generation_strategy.adapter
-        if adapter is None:
+        # Get the model bridge from the generation strategy 
+        model_bridge = ax_client.generation_strategy.model
+        if model_bridge is None:
             return None, None
         
-        # Run cross validation using Ax's built-in function with the adapter
-        cv_results = cross_validate(model=adapter, folds=-1)  # -1 for leave-one-out
-        
-        # Extract predictions and true values
-        true_values = []
-        predicted_means = []
-        predicted_sems = []
-        
-        for obs, pred in cv_results:
-            # Extract true value from observation data
-            true_val = obs.data.means[0]  # First metric mean
-            # Extract predicted mean and SEM from prediction data
-            pred_mean = pred.means[0]  # First metric mean
-            pred_var = pred.covariance[0][0]  # First metric variance
-            pred_sem = np.sqrt(pred_var) if pred_var > 0 else 0.0
-            
-            true_values.append(true_val)
-            predicted_means.append(pred_mean)
-            predicted_sems.append(pred_sem)
+        # Run cross validation using Ax's built-in function with the model bridge
+        cv = cross_validate(model=model_bridge, folds=-1)  # Leave-one-out CV
+        fig = interact_cross_validation_plotly(cv)
+        y_act = fig["data"][1].x
+        y_pred = fig["data"][1].y
         
         # Calculate R² using Ax's cross validation predictions
-        ax_cv_r2 = r2_score(true_values, predicted_means)
+        ax_cv_r2 = r2_score(y_act, y_pred)
         
-        # Calculate interval score using Ax's cross validation predictions
-        true_values = np.array(true_values)
-        predicted_means = np.array(predicted_means)
-        predicted_sems = np.array(predicted_sems)
+        # For interval score calculation, we need uncertainty estimates
+        # We'll use the residuals to estimate uncertainty
+        residuals = np.array(y_act) - np.array(y_pred)
+        pred_std = np.std(residuals)  # Simple estimate of prediction uncertainty
         
-        # Convert SEM to 95% confidence intervals (SEM * 1.96 for 95% CI)
-        lower = predicted_means - 1.96 * predicted_sems
-        upper = predicted_means + 1.96 * predicted_sems
+        # Convert to 95% confidence intervals using the estimated std
+        lower = np.array(y_pred) - 1.96 * pred_std
+        upper = np.array(y_pred) + 1.96 * pred_std
         
-        interval_scores = interval_score(true_values, lower, upper)
+        interval_scores = interval_score(np.array(y_act), lower, upper)
         ax_cv_interval_score = np.mean(interval_scores)
         
         return ax_cv_r2, ax_cv_interval_score
