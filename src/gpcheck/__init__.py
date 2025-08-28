@@ -1,1 +1,1 @@
-from gpcheck import data, metrics, models, visualization, benchmark
+from gpcheck import data, metrics, models, visualization
