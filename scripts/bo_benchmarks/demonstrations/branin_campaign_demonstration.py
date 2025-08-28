@@ -63,62 +63,47 @@ def calculate_ax_cross_validation_metrics(ax_client):
         if ax_client.generation_strategy.current_step_index == 0:
             return None, None
             
-        # Get experiment and data 
-        experiment = ax_client.experiment
-        data = experiment.fetch_data()
+        # Get the adapter from the generation strategy - this is the correct approach
+        adapter = ax_client.generation_strategy.adapter
+        if adapter is None:
+            return None, None
         
-        # Get the generation strategy's current model - this is the proper way
-        # The generation strategy manages the model internally
-        gs = ax_client.generation_strategy
+        # Run cross validation using Ax's built-in function with the adapter
+        cv_results = cross_validate(model=adapter, folds=-1)  # -1 for leave-one-out
         
-        # Force model generation if needed
-        if hasattr(gs, '_gen'):
-            # Get the model that was actually used for generation
-            try:
-                # This is the standard pattern in Ax - create a model using the same approach
-                # as the generation strategy but for cross validation
-                from ax.service.utils.with_db_settings_base import WithDBSettingsBase
-                from ax.core.data import Data
-                
-                # Try direct cross validation on the ax_client's internal model
-                cv_results = cross_validate(model=gs._gen, folds=-1)
-                
-                # Extract predictions and true values
-                true_values = []
-                predicted_means = []
-                predicted_sems = []
-                
-                for obs, pred in cv_results:
-                    true_val = obs.data['branin'][0]  # Extract true value
-                    pred_mean = pred['branin'][0]  # Extract predicted mean
-                    pred_sem = pred['branin'][1]   # Extract predicted SEM
-                    
-                    true_values.append(true_val)
-                    predicted_means.append(pred_mean)
-                    predicted_sems.append(pred_sem)
-                
-                # Calculate R² using Ax's cross validation predictions
-                ax_cv_r2 = r2_score(true_values, predicted_means)
-                
-                # Calculate interval score using Ax's cross validation predictions
-                true_values = np.array(true_values)
-                predicted_means = np.array(predicted_means)
-                predicted_sems = np.array(predicted_sems)
-                
-                # Convert SEM to 95% confidence intervals (SEM * 1.96 for 95% CI)
-                lower = predicted_means - 1.96 * predicted_sems
-                upper = predicted_means + 1.96 * predicted_sems
-                
-                interval_scores = interval_score(true_values, lower, upper)
-                ax_cv_interval_score = np.mean(interval_scores)
-                
-                return ax_cv_r2, ax_cv_interval_score
-                
-            except Exception as inner_e:
-                print(f"Inner cross validation failed: {inner_e}")
-                return None, None
+        # Extract predictions and true values
+        true_values = []
+        predicted_means = []
+        predicted_sems = []
         
-        return None, None
+        for obs, pred in cv_results:
+            # Extract true value from observation data
+            true_val = obs.data.means[0]  # First metric mean
+            # Extract predicted mean and SEM from prediction data
+            pred_mean = pred.means[0]  # First metric mean
+            pred_var = pred.covariance[0][0]  # First metric variance
+            pred_sem = np.sqrt(pred_var) if pred_var > 0 else 0.0
+            
+            true_values.append(true_val)
+            predicted_means.append(pred_mean)
+            predicted_sems.append(pred_sem)
+        
+        # Calculate R² using Ax's cross validation predictions
+        ax_cv_r2 = r2_score(true_values, predicted_means)
+        
+        # Calculate interval score using Ax's cross validation predictions
+        true_values = np.array(true_values)
+        predicted_means = np.array(predicted_means)
+        predicted_sems = np.array(predicted_sems)
+        
+        # Convert SEM to 95% confidence intervals (SEM * 1.96 for 95% CI)
+        lower = predicted_means - 1.96 * predicted_sems
+        upper = predicted_means + 1.96 * predicted_sems
+        
+        interval_scores = interval_score(true_values, lower, upper)
+        ax_cv_interval_score = np.mean(interval_scores)
+        
+        return ax_cv_r2, ax_cv_interval_score
         
     except Exception as e:
         print(f"Ax cross validation failed: {e}")
