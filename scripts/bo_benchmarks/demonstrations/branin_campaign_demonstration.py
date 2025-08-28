@@ -56,6 +56,75 @@ def normal_95ci(mean, std):
     return lower, upper
 
 
+def calculate_ax_cross_validation_metrics(ax_client):
+    """Calculate metrics using Ax's built-in cross validation."""
+    try:
+        # Skip if using Sobol (first 5 trials) - no model available yet
+        if ax_client.generation_strategy.current_step_index == 0:
+            return None, None
+            
+        # Get experiment and data 
+        experiment = ax_client.experiment
+        data = experiment.fetch_data()
+        
+        # Get the generation strategy's current model - this is the proper way
+        # The generation strategy manages the model internally
+        gs = ax_client.generation_strategy
+        
+        # Force model generation if needed
+        if hasattr(gs, '_gen'):
+            # Get the model that was actually used for generation
+            try:
+                # This is the standard pattern in Ax - create a model using the same approach
+                # as the generation strategy but for cross validation
+                from ax.service.utils.with_db_settings_base import WithDBSettingsBase
+                from ax.core.data import Data
+                
+                # Try direct cross validation on the ax_client's internal model
+                cv_results = cross_validate(model=gs._gen, folds=-1)
+                
+                # Extract predictions and true values
+                true_values = []
+                predicted_means = []
+                predicted_sems = []
+                
+                for obs, pred in cv_results:
+                    true_val = obs.data['branin'][0]  # Extract true value
+                    pred_mean = pred['branin'][0]  # Extract predicted mean
+                    pred_sem = pred['branin'][1]   # Extract predicted SEM
+                    
+                    true_values.append(true_val)
+                    predicted_means.append(pred_mean)
+                    predicted_sems.append(pred_sem)
+                
+                # Calculate R² using Ax's cross validation predictions
+                ax_cv_r2 = r2_score(true_values, predicted_means)
+                
+                # Calculate interval score using Ax's cross validation predictions
+                true_values = np.array(true_values)
+                predicted_means = np.array(predicted_means)
+                predicted_sems = np.array(predicted_sems)
+                
+                # Convert SEM to 95% confidence intervals (SEM * 1.96 for 95% CI)
+                lower = predicted_means - 1.96 * predicted_sems
+                upper = predicted_means + 1.96 * predicted_sems
+                
+                interval_scores = interval_score(true_values, lower, upper)
+                ax_cv_interval_score = np.mean(interval_scores)
+                
+                return ax_cv_r2, ax_cv_interval_score
+                
+            except Exception as inner_e:
+                print(f"Inner cross validation failed: {inner_e}")
+                return None, None
+        
+        return None, None
+        
+    except Exception as e:
+        print(f"Ax cross validation failed: {e}")
+        return None, None
+
+
 def calculate_iteration_metrics(ax_client, trial_index):
     """Calculate evaluation metrics after each trial using both GP model and Ax cross validation."""
     # Skip if not enough trials
@@ -101,22 +170,14 @@ def calculate_iteration_metrics(ax_client, trial_index):
         mean_interval_score = np.mean(interval_scores)
         
         # ===== Ax cross validation metrics =====
-        # Note: Ax cross validation implementation would require ax.modelbridge.registry.Models.BOTORCH_MODULAR
-        # For now, using GP-based metrics as primary evaluation approach
-        ax_cv_r2 = None
-        
-        # TODO: Implement proper Ax cross validation when ModelBridge is available
-        # This would require:
-        # from ax.modelbridge.registry import Models 
-        # from ax.modelbridge.cross_validation import cross_validate
-        # modelbridge = Models.BOTORCH_MODULAR(experiment=ax_client.experiment, data=data)
-        # cv_results = cross_validate(modelbridge)
+        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client)
         
         metrics = {
             'trial': trial_index,
             'gp_r2': gp_r2,  # GP-based R²
             'ax_cv_r2': ax_cv_r2,  # Ax cross validation R²
-            'interval_score': mean_interval_score,  # Mean interval score
+            'interval_score': mean_interval_score,  # Mean interval score (GP-based)
+            'ax_cv_interval_score': ax_cv_interval_score,  # Mean interval score (Ax CV)
             'imp_cumsum': imp_dict,
             'loo_nll': loo,
             'rank_tau': rank_tau,
@@ -169,7 +230,9 @@ for i in range(10):
         if iteration_metrics['ax_cv_r2'] is not None:
             print(f"  Ax CV R²: {iteration_metrics['ax_cv_r2']:.4f}")
         if iteration_metrics['interval_score'] is not None:
-            print(f"  Interval Score: {iteration_metrics['interval_score']:.4f}")
+            print(f"  GP Interval Score: {iteration_metrics['interval_score']:.4f}")
+        if iteration_metrics['ax_cv_interval_score'] is not None:
+            print(f"  Ax CV Interval Score: {iteration_metrics['ax_cv_interval_score']:.4f}")
 
 best_parameters, metrics = ax_client.get_best_parameters()
 print(f"\nBest parameters: {best_parameters}")
@@ -189,7 +252,9 @@ if all_metrics:
     if final_metrics['ax_cv_r2'] is not None:
         print(f"Ax Cross Validation R²: {final_metrics['ax_cv_r2']:.4f}")
     if final_metrics['interval_score'] is not None:
-        print(f"Mean Interval Score: {final_metrics['interval_score']:.4f}")
+        print(f"GP Mean Interval Score: {final_metrics['interval_score']:.4f}")
+    if final_metrics['ax_cv_interval_score'] is not None:
+        print(f"Ax CV Mean Interval Score: {final_metrics['ax_cv_interval_score']:.4f}")
     print(f"Rank correlation (τ): {final_metrics['rank_tau']:.4f}")
     print(f"Leave-One-Out Negative Log-Likelihood: {final_metrics['loo_nll']:.2f}")
     print(f"Importance concentration: {final_metrics['imp_cumsum']}")
@@ -222,8 +287,11 @@ if all_metrics:
     # Extract Ax CV R² and interval scores (may have None values)
     ax_cv_r2_values = [m['ax_cv_r2'] for m in all_metrics if m['ax_cv_r2'] is not None]
     interval_score_values = [m['interval_score'] for m in all_metrics if m['interval_score'] is not None]
+    ax_cv_interval_score_values = [m['ax_cv_interval_score'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
+    
     ax_cv_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_r2'] is not None]
     interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
+    ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
     
     # Use multiple y-axes for different scales
     ax2_twin1 = ax2.twinx()
@@ -244,13 +312,20 @@ if all_metrics:
                         linewidth=2, linestyle='--')
         lines += line4
     
-    # Plot interval score if available  
+    # Plot GP-based interval score if available  
     if interval_score_values:
-        line5 = ax2_twin3.plot(interval_trial_nums, interval_score_values, 'purple', label='Interval Score', 
+        line5 = ax2_twin3.plot(interval_trial_nums, interval_score_values, 'purple', label='GP Interval Score', 
                               marker='v', linewidth=2, linestyle=':')
         lines += line5
-        ax2_twin3.set_ylabel("Interval Score", color='purple')
-        ax2_twin3.tick_params(axis='y', labelcolor='purple')
+    
+    # Plot Ax CV interval score if available
+    if ax_cv_interval_score_values:
+        line6 = ax2_twin3.plot(ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'magenta', 
+                              label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.')
+        lines += line6
+        
+    ax2_twin3.set_ylabel("Interval Score", color='purple')
+    ax2_twin3.tick_params(axis='y', labelcolor='purple')
     
     ax2.set_xlabel("Trial Number")
     ax2.set_ylabel("R² Values", color='r')
@@ -271,7 +346,9 @@ if all_metrics:
     if ax_cv_r2_values:
         print(f"Ax Cross Validation R² values: {ax_cv_r2_values}")
     if interval_score_values:
-        print(f"Interval Score values: {interval_score_values}")
+        print(f"GP Interval Score values: {interval_score_values}")
+    if ax_cv_interval_score_values:
+        print(f"Ax CV Interval Score values: {ax_cv_interval_score_values}")
     
 else:
     ax2.text(0.5, 0.5, 'Not enough data\nfor metrics calculation', 
