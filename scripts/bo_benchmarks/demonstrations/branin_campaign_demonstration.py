@@ -272,12 +272,7 @@ if all_metrics:
     ax2_twin2.spines['right'].set_position(('outward', 60))
     ax2_twin3.spines['right'].set_position(('outward', 120))
     
-    # Add overlaid best-so-far trace (faded gray, semi-transparent)
-    best_so_far = np.minimum.accumulate(df[objectives])
-    ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
-             label='Best so far', linestyle='-', zorder=1)
-    
-    # Plot main metrics
+    # Plot main metrics first
     line1 = ax2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
     line2 = ax2_twin1.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
     line3 = ax2_twin2.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
@@ -288,6 +283,18 @@ if all_metrics:
         line4 = ax2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
                         linewidth=2, linestyle='--', zorder=3)
         lines += line4
+    
+    # Set appropriate y-axis limits for R² values before adding best-so-far trace
+    r2_values_all = gp_r2_values + (ax_cv_r2_values if ax_cv_r2_values else [])
+    if r2_values_all:
+        r2_min, r2_max = min(r2_values_all), max(r2_values_all)
+        r2_range = r2_max - r2_min
+        ax2.set_ylim(r2_min - 0.1 * r2_range, r2_max + 0.1 * r2_range)
+    
+    # Add overlaid best-so-far trace (faded gray, semi-transparent) without affecting y-limits
+    best_so_far = np.minimum.accumulate(df[objectives])
+    ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
+             label='Best so far', linestyle='-', zorder=1)
     
     # Plot GP-based interval score if available  
     if interval_score_values:
