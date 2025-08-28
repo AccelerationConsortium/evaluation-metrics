@@ -27,8 +27,37 @@ def branin(x1, x2):
     return y
 
 
+def interval_score(y_true, lower, upper, alpha=0.05):
+    """
+    Calculate interval score for uncertainty quantification evaluation.
+    
+    For 95% confidence intervals (alpha=0.05), the formula is:
+    f_interval = (upper - lower) + (2/alpha) * max(0, lower - y) + (2/alpha) * max(0, y - upper)
+    
+    Args:
+        y_true: True values
+        lower: Lower confidence bounds
+        upper: Upper confidence bounds 
+        alpha: Confidence level (0.05 for 95% CI)
+    
+    Returns:
+        Array of interval scores (lower is better)
+    """
+    width = upper - lower
+    below_penalty = np.maximum(0, lower - y_true)
+    above_penalty = np.maximum(0, y_true - upper)
+    return width + (2 / alpha) * below_penalty + (2 / alpha) * above_penalty
+
+
+def normal_95ci(mean, std):
+    """Convert mean and standard deviation to 95% confidence intervals."""
+    lower = mean - 1.96 * std
+    upper = mean + 1.96 * std
+    return lower, upper
+
+
 def calculate_iteration_metrics(ax_client, trial_index):
-    """Calculate evaluation metrics after each trial using GP model."""
+    """Calculate evaluation metrics after each trial using both GP model and Ax cross validation."""
     # Skip if not enough trials
     if trial_index < 3:
         return None
@@ -38,8 +67,8 @@ def calculate_iteration_metrics(ax_client, trial_index):
     if len(df) < 3:
         return None
     
-    # Calculate GP model metrics using gpcheck
     try:
+        # ===== GP-based metrics (gpcheck) =====
         # Prepare data for GP model
         train_X = torch.tensor(df[['x1', 'x2']].values, dtype=torch.float32)
         train_Y = torch.tensor(df[obj1_name].values, dtype=torch.float32).unsqueeze(-1)
@@ -49,10 +78,10 @@ def calculate_iteration_metrics(ax_client, trial_index):
         gp_model = GPModel(config)
         gp_model.fit(train_X, train_Y)
         
-        # Calculate metrics
+        # Calculate GP-based metrics
         mean_pred, std_pred = gp_model.predict(train_X)
         
-        r2 = r2_score(train_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
+        gp_r2 = r2_score(train_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
         
         ls, imp = gp_model.get_lengthscales()
         imp_dict = importance_concentration(imp)
@@ -61,9 +90,33 @@ def calculate_iteration_metrics(ax_client, trial_index):
         
         rank_tau = kendalltau(train_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
         
+        # Calculate interval score using GP predictions
+        y_true = train_Y.squeeze().detach().cpu().numpy()
+        y_pred_mean = mean_pred.detach().cpu().numpy()
+        y_pred_std = std_pred.detach().cpu().numpy()
+        
+        # Convert to 95% confidence intervals
+        lower, upper = normal_95ci(y_pred_mean, y_pred_std)
+        interval_scores = interval_score(y_true, lower, upper)
+        mean_interval_score = np.mean(interval_scores)
+        
+        # ===== Ax cross validation metrics =====
+        # Note: Ax cross validation implementation would require ax.modelbridge.registry.Models.BOTORCH_MODULAR
+        # For now, using GP-based metrics as primary evaluation approach
+        ax_cv_r2 = None
+        
+        # TODO: Implement proper Ax cross validation when ModelBridge is available
+        # This would require:
+        # from ax.modelbridge.registry import Models 
+        # from ax.modelbridge.cross_validation import cross_validate
+        # modelbridge = Models.BOTORCH_MODULAR(experiment=ax_client.experiment, data=data)
+        # cv_results = cross_validate(modelbridge)
+        
         metrics = {
             'trial': trial_index,
-            'r2': r2,
+            'gp_r2': gp_r2,  # GP-based R²
+            'ax_cv_r2': ax_cv_r2,  # Ax cross validation R²
+            'interval_score': mean_interval_score,  # Mean interval score
             'imp_cumsum': imp_dict,
             'loo_nll': loo,
             'rank_tau': rank_tau,
@@ -74,7 +127,7 @@ def calculate_iteration_metrics(ax_client, trial_index):
         return metrics
         
     except Exception as e:
-        print(f"GP metrics calculation failed: {e}")
+        print(f"Metrics calculation failed: {e}")
         return None
 
 
@@ -112,7 +165,11 @@ for i in range(10):
     iteration_metrics = calculate_iteration_metrics(ax_client, trial_index)
     if iteration_metrics:
         all_metrics.append(iteration_metrics)
-        print(f"  R²: {iteration_metrics['r2']:.4f}, LOO NLL: {iteration_metrics['loo_nll']:.2f}")
+        print(f"  GP R²: {iteration_metrics['gp_r2']:.4f}, LOO NLL: {iteration_metrics['loo_nll']:.2f}")
+        if iteration_metrics['ax_cv_r2'] is not None:
+            print(f"  Ax CV R²: {iteration_metrics['ax_cv_r2']:.4f}")
+        if iteration_metrics['interval_score'] is not None:
+            print(f"  Interval Score: {iteration_metrics['interval_score']:.4f}")
 
 best_parameters, metrics = ax_client.get_best_parameters()
 print(f"\nBest parameters: {best_parameters}")
@@ -128,13 +185,17 @@ print(f"Columns: {df.columns.tolist()}")
 if all_metrics:
     print("\n=== Final Evaluation Metrics ===")
     final_metrics = all_metrics[-1]
-    print(f"R²: {final_metrics['r2']:.4f}")
+    print(f"GP R²: {final_metrics['gp_r2']:.4f}")
+    if final_metrics['ax_cv_r2'] is not None:
+        print(f"Ax Cross Validation R²: {final_metrics['ax_cv_r2']:.4f}")
+    if final_metrics['interval_score'] is not None:
+        print(f"Mean Interval Score: {final_metrics['interval_score']:.4f}")
     print(f"Rank correlation (τ): {final_metrics['rank_tau']:.4f}")
     print(f"Leave-One-Out Negative Log-Likelihood: {final_metrics['loo_nll']:.2f}")
     print(f"Importance concentration: {final_metrics['imp_cumsum']}")
 
 # Create stacked vertical plots as requested
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12), dpi=150)
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 14), dpi=150)
 
 # Plot 1: Standard "best so far" trace
 ax1.scatter(df.index, df[objectives], ec="k", fc="none", label="Observed")
@@ -154,21 +215,45 @@ ax1.grid(True, alpha=0.3)
 # Plot 2: Evaluation metrics over trials (iteration-by-iteration results)
 if all_metrics:
     trial_nums = [m['trial'] for m in all_metrics]
-    r2_values = [m['r2'] for m in all_metrics]
+    gp_r2_values = [m['gp_r2'] for m in all_metrics]
     rank_tau_values = [m['rank_tau'] for m in all_metrics] 
     loo_values = [m['loo_nll'] for m in all_metrics]
     
-    # Use secondary y-axes for different scales
+    # Extract Ax CV R² and interval scores (may have None values)
+    ax_cv_r2_values = [m['ax_cv_r2'] for m in all_metrics if m['ax_cv_r2'] is not None]
+    interval_score_values = [m['interval_score'] for m in all_metrics if m['interval_score'] is not None]
+    ax_cv_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_r2'] is not None]
+    interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
+    
+    # Use multiple y-axes for different scales
     ax2_twin1 = ax2.twinx()
     ax2_twin2 = ax2.twinx()
+    ax2_twin3 = ax2.twinx()
     ax2_twin2.spines['right'].set_position(('outward', 60))
+    ax2_twin3.spines['right'].set_position(('outward', 120))
     
-    line1 = ax2.plot(trial_nums, r2_values, 'r-', label='R²', marker='o', linewidth=2)
+    # Plot main metrics
+    line1 = ax2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2)
     line2 = ax2_twin1.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2)
     line3 = ax2_twin2.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2)
     
+    # Plot Ax CV R² if available
+    lines = line1 + line2 + line3
+    if ax_cv_r2_values:
+        line4 = ax2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
+                        linewidth=2, linestyle='--')
+        lines += line4
+    
+    # Plot interval score if available  
+    if interval_score_values:
+        line5 = ax2_twin3.plot(interval_trial_nums, interval_score_values, 'purple', label='Interval Score', 
+                              marker='v', linewidth=2, linestyle=':')
+        lines += line5
+        ax2_twin3.set_ylabel("Interval Score", color='purple')
+        ax2_twin3.tick_params(axis='y', labelcolor='purple')
+    
     ax2.set_xlabel("Trial Number")
-    ax2.set_ylabel("R²", color='r')
+    ax2.set_ylabel("R² Values", color='r')
     ax2_twin1.set_ylabel("Rank Correlation (τ)", color='g')
     ax2_twin2.set_ylabel("LOO Negative Log-Likelihood", color='b')
     
@@ -179,11 +264,14 @@ if all_metrics:
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     
     # Combined legend
-    lines = line1 + line2 + line3
     labels = [l.get_label() for l in lines]
     ax2.legend(lines, labels, loc='upper left')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
+    if ax_cv_r2_values:
+        print(f"Ax Cross Validation R² values: {ax_cv_r2_values}")
+    if interval_score_values:
+        print(f"Interval Score values: {interval_score_values}")
     
 else:
     ax2.text(0.5, 0.5, 'Not enough data\nfor metrics calculation', 
