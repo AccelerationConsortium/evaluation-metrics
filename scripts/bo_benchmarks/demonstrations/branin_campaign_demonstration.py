@@ -77,6 +77,7 @@ def calculate_ax_cross_validation_metrics(ax_client):
         
         # Calculate R² using Ax's cross validation predictions
         ax_cv_r2 = r2_score(y_act, y_pred)
+        print(f"  Ax CV R²: {ax_cv_r2:.4f}")
         
         # For interval score calculation, we need uncertainty estimates
         # We'll use the residuals to estimate uncertainty
@@ -89,6 +90,7 @@ def calculate_ax_cross_validation_metrics(ax_client):
         
         interval_scores = interval_score(np.array(y_act), lower, upper)
         ax_cv_interval_score = np.mean(interval_scores)
+        print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
         
         return ax_cv_r2, ax_cv_interval_score
         
@@ -157,6 +159,10 @@ def calculate_iteration_metrics(ax_client, trial_index):
             'importance': imp
         }
         
+        # Print metrics for this iteration
+        print(f"  GP R²: {gp_r2:.4f}, LOO NLL: {loo:.2f}")
+        print(f"  GP Interval Score: {mean_interval_score:.4f}")
+        
         return metrics
         
     except Exception as e:
@@ -198,13 +204,6 @@ for i in range(10):
     iteration_metrics = calculate_iteration_metrics(ax_client, trial_index)
     if iteration_metrics:
         all_metrics.append(iteration_metrics)
-        print(f"  GP R²: {iteration_metrics['gp_r2']:.4f}, LOO NLL: {iteration_metrics['loo_nll']:.2f}")
-        if iteration_metrics['ax_cv_r2'] is not None:
-            print(f"  Ax CV R²: {iteration_metrics['ax_cv_r2']:.4f}")
-        if iteration_metrics['interval_score'] is not None:
-            print(f"  GP Interval Score: {iteration_metrics['interval_score']:.4f}")
-        if iteration_metrics['ax_cv_interval_score'] is not None:
-            print(f"  Ax CV Interval Score: {iteration_metrics['ax_cv_interval_score']:.4f}")
 
 best_parameters, metrics = ax_client.get_best_parameters()
 print(f"\nBest parameters: {best_parameters}")
@@ -267,24 +266,25 @@ if all_metrics:
     ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
     
     # Use multiple y-axes for different scales
-    ax2_twin1 = ax2.twinx()
+    ax2_twin1 = ax2.twinx()  # R² values will be on the right
     ax2_twin2 = ax2.twinx()
     ax2_twin3 = ax2.twinx()
-    ax2_twin4 = ax2.twinx()  # Add new axis for best-so-far trace
     ax2_twin2.spines['right'].set_position(('outward', 60))
     ax2_twin3.spines['right'].set_position(('outward', 120))
-    ax2_twin4.spines['right'].set_position(('outward', 180))
     
-    # Plot main metrics first
-    line1 = ax2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
-    line2 = ax2_twin1.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
-    line3 = ax2_twin2.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
+    # Plot best-so-far trace on the left (main) y-axis
+    best_so_far = np.minimum.accumulate(df[objective_name])
+    line_best = ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
+                         label='Best so far', linestyle='-', zorder=1)
     
-    # Plot Ax CV R² if available
-    lines = line1 + line2 + line3
+    # Plot R² values on the right y-axis (ax2_twin1)
+    line1 = ax2_twin1.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
+    lines = line_best + line1
+    
+    # Plot Ax CV R² if available (also on right y-axis)
     if ax_cv_r2_values:
-        line4 = ax2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
-                        linewidth=2, linestyle='--', zorder=3)
+        line4 = ax2_twin1.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
+                              linewidth=2, linestyle='--', zorder=3)
         lines += line4
     
     # Set appropriate y-axis limits for R² values
@@ -292,16 +292,12 @@ if all_metrics:
     if r2_values_all:
         r2_min, r2_max = min(r2_values_all), max(r2_values_all)
         r2_range = r2_max - r2_min
-        ax2.set_ylim(r2_min - 0.1 * r2_range, r2_max + 0.1 * r2_range)
+        ax2_twin1.set_ylim(r2_min - 0.1 * r2_range, r2_max + 0.1 * r2_range)
     
-    # Add overlaid best-so-far trace on its own y-axis (faded gray, semi-transparent)
-    best_so_far = np.minimum.accumulate(df[objective_name])
-    line_best = ax2_twin4.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
-                              label='Best so far', linestyle='-', zorder=1)
-    
-    # Hide the y-axis for best-so-far trace to keep it subtle
-    ax2_twin4.set_yticks([])
-    ax2_twin4.spines['right'].set_visible(False)
+    # Plot other metrics on additional y-axes
+    line2 = ax2_twin2.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
+    line3 = ax2_twin3.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
+    lines += line2 + line3
     
     # Plot GP-based interval score if available  
     if interval_score_values:
@@ -315,21 +311,16 @@ if all_metrics:
                               label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.', zorder=3)
         lines += line6
         
-    # Add best-so-far line to the legend
-    best_line = [plt.Line2D([0], [0], color='gray', linewidth=6, alpha=0.3, label='Best so far')]
-    lines = best_line + lines
-        
-    ax2_twin3.set_ylabel("Interval Score", color='purple')
-    ax2_twin3.tick_params(axis='y', labelcolor='purple')
-    
     ax2.set_xlabel("Trial Number")
-    ax2.set_ylabel("R² Values", color='r')
-    ax2_twin1.set_ylabel("Rank Correlation (τ)", color='g')
-    ax2_twin2.set_ylabel("LOO Negative Log-Likelihood", color='b')
+    ax2.set_ylabel(f"Best {objective_name}", color='gray')
+    ax2_twin1.set_ylabel("R² Values", color='r')
+    ax2_twin2.set_ylabel("Rank Correlation (τ)", color='g')
+    ax2_twin3.set_ylabel("LOO NLL / Interval Score", color='b')
     
-    ax2.tick_params(axis='y', labelcolor='r')
-    ax2_twin1.tick_params(axis='y', labelcolor='g')
-    ax2_twin2.tick_params(axis='y', labelcolor='b')
+    ax2.tick_params(axis='y', labelcolor='gray')
+    ax2_twin1.tick_params(axis='y', labelcolor='r')
+    ax2_twin2.tick_params(axis='y', labelcolor='g')
+    ax2_twin3.tick_params(axis='y', labelcolor='b')
     
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     
