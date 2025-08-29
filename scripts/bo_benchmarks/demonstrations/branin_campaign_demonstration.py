@@ -234,17 +234,18 @@ if all_metrics:
 # Create stacked vertical plots as requested
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 14), dpi=150)
 
-# Plot 1: Standard "best so far" trace
-ax1.scatter(df.index, df[objectives], ec="k", fc="none", label="Observed")
+# Plot 1: Standard "best so far" trace - use string name instead of list
+objective_name = objectives[0]  # Get the first (and only) objective name as string
+ax1.scatter(df.index, df[objective_name], ec="k", fc="none", label="Observed")
 ax1.plot(
     df.index,
-    np.minimum.accumulate(df[objectives]),
+    np.minimum.accumulate(df[objective_name]),
     color="#0033FF",
     lw=2,
     label="Best to Trial",
 )
 ax1.set_xlabel("Trial Number")
-ax1.set_ylabel(f"{obj1_name} objective")
+ax1.set_ylabel(f"{objective_name} objective")
 ax1.set_title("Optimization Progress")
 ax1.legend()
 ax1.grid(True, alpha=0.3)
@@ -292,7 +293,7 @@ if all_metrics:
         ax2.set_ylim(r2_min - 0.1 * r2_range, r2_max + 0.1 * r2_range)
     
     # Add overlaid best-so-far trace (faded gray, semi-transparent) without affecting y-limits
-    best_so_far = np.minimum.accumulate(df[objectives])
+    best_so_far = np.minimum.accumulate(df[objective_name])
     ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
              label='Best so far', linestyle='-', zorder=1)
     
