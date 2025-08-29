@@ -59,25 +59,44 @@ def normal_95ci(mean, std):
     return lower, upper
 
 
-def calculate_ax_cross_validation_metrics(ax_client, trial_index):
-    """Calculate metrics using Ax's built-in cross validation with the main client."""
+def calculate_ax_cross_validation_metrics(ax_client_cv, trial_index, x1, x2, result):
+    """
+    Calculate metrics using a separate Ax client dedicated to cross-validation.
+    This client skips Sobol initialization and uses BOTORCH_MODULAR immediately.
+    """
     try:
         # Skip if not enough data for cross-validation
         if trial_index < 3:
             return None, None
         
-        # Check if client has a Bayesian model (not just Sobol)
-        if ax_client.generation_strategy.current_step_index == 0:
-            print("  Main client still in Sobol phase, no CV available yet")
+        # Attach the current trial to the CV client (mirroring main client data)
+        params = {"x1": x1, "x2": x2}
+        _, trial_index_cv = ax_client_cv.attach_trial(parameters=params)
+        ax_client_cv.complete_trial(trial_index=trial_index_cv, raw_data=result)
+        
+        # Force the CV client to generate a trial to trigger model creation if needed
+        # We don't use this trial, it's just to ensure the model bridge is created
+        if len(ax_client_cv.experiment.trials) >= 3 and ax_client_cv.generation_strategy.model is None:
+            try:
+                _, dummy_trial_idx = ax_client_cv.get_next_trial()
+                # Abandon the dummy trial - we just needed to trigger model creation
+                ax_client_cv.abandon_trial(trial_index=dummy_trial_idx)
+            except Exception:
+                pass  # Ignore errors in dummy trial generation
+        
+        # Check if CV client has a Bayesian model
+        # The client should switch to BOTORCH_MODULAR once it has enough data
+        if len(ax_client_cv.experiment.trials) < 3:
+            print("  CV client has insufficient trials for CV")
             return None, None
             
-        # Get the model bridge from the generation strategy 
-        model_bridge = ax_client.generation_strategy.model
+        # Get the model bridge from the CV generation strategy 
+        model_bridge = ax_client_cv.generation_strategy.model
         if model_bridge is None:
-            print("  Model bridge is None")
+            print("  CV model bridge is None")
             return None, None
         
-        # Run cross validation using Ax's built-in function with the model bridge
+        # Run cross validation using Ax's built-in function with the CV model bridge
         cv = cross_validate(model=model_bridge, folds=-1)  # Leave-one-out CV
         fig = interact_cross_validation_plotly(cv)
         
@@ -91,20 +110,17 @@ def calculate_ax_cross_validation_metrics(ax_client, trial_index):
         print(f"  Ax CV R²: {ax_cv_r2:.4f}")
         
         # Extract uncertainty directly from the plot data as requested
-        if hasattr(in_sample_trace, 'error_y') and in_sample_trace.error_y is not None:
-            # Get standard errors from the plot
-            pred_std = np.array(in_sample_trace.error_y.array)
-            
-            # Convert to 95% confidence intervals using the extracted std errors
-            lower = y_pred - 1.96 * pred_std
-            upper = y_pred + 1.96 * pred_std
-            
-            interval_scores = interval_score(y_act, lower, upper)
-            ax_cv_interval_score = np.mean(interval_scores)
-            print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
-        else:
-            print("  No uncertainty data available from Ax CV")
-            ax_cv_interval_score = None
+        assert hasattr(in_sample_trace, 'error_y') and in_sample_trace.error_y is not None, "No uncertainty data available from Ax CV"
+        # Get standard errors from the plot
+        pred_std = np.array(in_sample_trace.error_y.array)
+        
+        # Convert to 95% confidence intervals using the extracted std errors
+        lower = y_pred - 1.96 * pred_std
+        upper = y_pred + 1.96 * pred_std
+        
+        interval_scores = interval_score(y_act, lower, upper)
+        ax_cv_interval_score = np.mean(interval_scores)
+        print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
         
         return ax_cv_r2, ax_cv_interval_score
         
@@ -113,7 +129,7 @@ def calculate_ax_cross_validation_metrics(ax_client, trial_index):
         return None, None
 
 
-def calculate_iteration_metrics(ax_client, trial_index):
+def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, result):
     """Calculate evaluation metrics after each trial using both GP model and Ax cross validation."""
     # Skip if not enough trials
     if trial_index < 3:
@@ -158,7 +174,7 @@ def calculate_iteration_metrics(ax_client, trial_index):
         mean_interval_score = np.mean(interval_scores)
         
         # ===== Ax cross validation metrics =====
-        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client, trial_index)
+        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client_cv, trial_index, x1, x2, result)
         
         metrics = {
             'trial': trial_index,
@@ -197,6 +213,29 @@ ax_client.create_experiment(
     },
 )
 
+# Create separate AxClient for cross-validation that skips Sobol initialization
+# This client will mirror the main client's data but use BOTORCH_MODULAR immediately
+gs_cv = GenerationStrategy(
+    steps=[
+        GenerationStep(
+            model=Models.BOTORCH_MODULAR,
+            num_trials=-1,  # Use for all trials
+            min_trials_observed=0,  # No minimum - start immediately with BOTORCH_MODULAR
+        )
+    ]
+)
+
+ax_client_cv = AxClient(generation_strategy=gs_cv)
+ax_client_cv.create_experiment(
+    parameters=[
+        {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
+        {"name": "x2", "type": "range", "bounds": [0.0, 10.0]},
+    ],
+    objectives={
+        obj1_name: ObjectiveProperties(minimize=True),
+    },
+)
+
 # Track metrics per iteration
 all_metrics = []
 
@@ -215,7 +254,7 @@ for i in range(10):
     print(f"Trial {trial_index}: x1={x1:.3f}, x2={x2:.3f}, branin={results:.3f}")
     
     # Calculate metrics after each trial (from trial 3 onward)
-    iteration_metrics = calculate_iteration_metrics(ax_client, trial_index)
+    iteration_metrics = calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, results)
     if iteration_metrics:
         all_metrics.append(iteration_metrics)
 
@@ -353,9 +392,9 @@ if all_metrics:
     
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     
-    # Place legend inside plot with transparency to avoid axis overlap
+    # Place legend inside plot with white background and transparency
     labels = [l.get_label() for l in lines]
-    legend = ax2.legend(lines, labels, loc='upper right', framealpha=0.8, fancybox=True, shadow=True)
+    legend = ax2.legend(lines, labels, loc='upper right', framealpha=0.8, fancybox=False, shadow=False)
     legend.get_frame().set_facecolor('white')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
