@@ -74,27 +74,17 @@ def calculate_ax_cross_validation_metrics(ax_client_cv, trial_index, x1, x2, res
         _, trial_index_cv = ax_client_cv.attach_trial(parameters=params)
         ax_client_cv.complete_trial(trial_index=trial_index_cv, raw_data=result)
         
-        # Force the CV client to generate a trial to trigger model creation if needed
-        # We don't use this trial, it's just to ensure the model bridge is created
-        if len(ax_client_cv.experiment.trials) >= 3 and ax_client_cv.generation_strategy.model is None:
-            try:
-                _, dummy_trial_idx = ax_client_cv.get_next_trial()
-                # Abandon the dummy trial - we just needed to trigger model creation
-                ax_client_cv.abandon_trial(trial_index=dummy_trial_idx)
-            except Exception:
-                pass  # Ignore errors in dummy trial generation
-        
-        # Check if CV client has a Bayesian model
-        # The client should switch to BOTORCH_MODULAR once it has enough data
-        if len(ax_client_cv.experiment.trials) < 3:
-            print("  CV client has insufficient trials for CV")
-            return None, None
-            
         # Get the model bridge from the CV generation strategy 
         model_bridge = ax_client_cv.generation_strategy.model
         if model_bridge is None:
-            print("  CV model bridge is None")
+            print("  Ax CV: Not available (still in Sobol phase)")
             return None, None
+        
+        # Skip if it's still a RandomModelBridge (Sobol)
+        if hasattr(model_bridge, 'model') and 'Sobol' in str(type(model_bridge.model)):
+            print("  Ax CV: Not available (using Sobol generator)")
+            return None, None
+        assert model_bridge is not None, "CV model bridge should be available"
         
         # Run cross validation using Ax's built-in function with the CV model bridge
         cv = cross_validate(model=model_bridge, folds=-1)  # Leave-one-out CV
@@ -213,14 +203,17 @@ ax_client.create_experiment(
     },
 )
 
-# Create separate AxClient for cross-validation that skips Sobol initialization
-# This client will mirror the main client's data but use BOTORCH_MODULAR immediately
+# Create separate AxClient for cross-validation with custom generation strategy
+# This client will mirror the main client's data using Sobol (3 trials) -> BOTORCH_MODULAR
 gs_cv = GenerationStrategy(
     steps=[
         GenerationStep(
+            model=Models.SOBOL,
+            num_trials=3,  # Fixed to 3 Sobol trials
+        ),
+        GenerationStep(
             model=Models.BOTORCH_MODULAR,
-            num_trials=-1,  # Use for all trials
-            min_trials_observed=0,  # No minimum - start immediately with BOTORCH_MODULAR
+            num_trials=-1,  # Use BOTORCH_MODULAR for remaining trials
         )
     ]
 )
@@ -394,7 +387,7 @@ if all_metrics:
     
     # Place legend inside plot with white background and transparency
     labels = [l.get_label() for l in lines]
-    legend = ax2.legend(lines, labels, loc='upper right', framealpha=0.8, fancybox=False, shadow=False)
+    legend = ax2.legend(lines, labels, loc='upper left', framealpha=0.8, fancybox=False, shadow=False)
     legend.get_frame().set_facecolor('white')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
