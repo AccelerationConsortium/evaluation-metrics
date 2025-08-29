@@ -28,6 +28,10 @@
 - Don't infer requirements or create workarounds unless asked
 - Put documentation content in comment replies, not separate files, unless asked
 
+## Coding Agent
+
+Set environment variables `PIP_TIMEOUT=100` and `PIP_RETRIES=2` prior to `conda` or `pip` installs
+
 ## Repo-specific
 
 - Activate the `balam-env` conda environment before running code (even if running on Niagara) or use a venv
