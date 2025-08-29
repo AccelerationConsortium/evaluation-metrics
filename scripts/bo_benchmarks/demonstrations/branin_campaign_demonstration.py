@@ -9,6 +9,8 @@ import pandas as pd
 from ax.service.ax_client import AxClient, ObjectiveProperties
 from ax.modelbridge.cross_validation import cross_validate
 from ax.plot.diagnostic import interact_cross_validation_plotly
+from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
+from ax.modelbridge.registry import Models
 import matplotlib.pyplot as plt
 import torch
 from gpcheck.models import GPModel, GPConfig
@@ -57,16 +59,22 @@ def normal_95ci(mean, std):
     return lower, upper
 
 
-def calculate_ax_cross_validation_metrics(ax_client):
-    """Calculate metrics using Ax's built-in cross validation."""
+def calculate_ax_cross_validation_metrics(ax_client, trial_index):
+    """Calculate metrics using Ax's built-in cross validation with the main client."""
     try:
-        # Skip if using Sobol (first 5 trials) - no model available yet
+        # Skip if not enough data for cross-validation
+        if trial_index < 3:
+            return None, None
+        
+        # Check if client has a Bayesian model (not just Sobol)
         if ax_client.generation_strategy.current_step_index == 0:
+            print("  Main client still in Sobol phase, no CV available yet")
             return None, None
             
         # Get the model bridge from the generation strategy 
         model_bridge = ax_client.generation_strategy.model
         if model_bridge is None:
+            print("  Main client model bridge is None")
             return None, None
         
         # Run cross validation using Ax's built-in function with the model bridge
@@ -144,7 +152,7 @@ def calculate_iteration_metrics(ax_client, trial_index):
         mean_interval_score = np.mean(interval_scores)
         
         # ===== Ax cross validation metrics =====
-        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client)
+        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client, trial_index)
         
         metrics = {
             'trial': trial_index,
@@ -170,7 +178,7 @@ def calculate_iteration_metrics(ax_client, trial_index):
         return None
 
 
-# Create ax client
+# Create main ax client for optimization
 ax_client = AxClient()
 
 ax_client.create_experiment(
@@ -324,9 +332,9 @@ if all_metrics:
     
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     
-    # Combined legend
+    # Combined legend - place outside plot area to avoid overlap
     labels = [l.get_label() for l in lines]
-    ax2.legend(lines, labels, loc='upper left')
+    ax2.legend(lines, labels, bbox_to_anchor=(1.05, 1), loc='upper left')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
     print(f"Rank tau correlation values: {rank_tau_values}")
