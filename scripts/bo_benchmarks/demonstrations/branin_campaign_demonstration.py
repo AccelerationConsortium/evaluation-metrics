@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Branin optimization campaign with 10 trials and iteration-by-iteration evaluation metrics calculation.
+Branin optimization campaign with 50 trials and iteration-by-iteration evaluation metrics calculation.
 This script demonstrates proper use of ax-platform with GP evaluation metrics calculated after each trial.
 """
 
@@ -12,6 +12,7 @@ from ax.plot.diagnostic import interact_cross_validation_plotly
 from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
 from ax.modelbridge.registry import Models
 import matplotlib.pyplot as plt
+from pathlib import Path
 import torch
 from gpcheck.models import GPModel, GPConfig
 from gpcheck.metrics import loo_pseudo_likelihood, importance_concentration
@@ -59,64 +60,91 @@ def normal_95ci(mean, std):
     return lower, upper
 
 
-def calculate_ax_cross_validation_metrics(ax_client_cv, trial_index, x1, x2, result):
+def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
     """
     Calculate metrics using a separate Ax client dedicated to cross-validation.
-    This client skips Sobol initialization and uses BOTORCH_MODULAR immediately.
+    This client uses BOTORCH_MODULAR immediately. Since we only attach completed
+    trials to this client (no suggestions requested from it), we may need to
+    trigger a one-off generation to force-fit the model before running CV.
     """
-    try:
-        # Skip if not enough data for cross-validation
-        if trial_index < 3:
-            return None, None
-        
-        # Attach the current trial to the CV client (mirroring main client data)
-        params = {"x1": x1, "x2": x2}
-        _, trial_index_cv = ax_client_cv.attach_trial(parameters=params)
-        ax_client_cv.complete_trial(trial_index=trial_index_cv, raw_data=result)
-        
-        # Get the model bridge from the CV generation strategy 
-        model_bridge = ax_client_cv.generation_strategy.model
-        if model_bridge is None:
-            print("  Ax CV: Not available (still in Sobol phase)")
-            return None, None
-        
-        # Skip if it's still a RandomModelBridge (Sobol)
-        if hasattr(model_bridge, 'model') and 'Sobol' in str(type(model_bridge.model)):
-            print("  Ax CV: Not available (using Sobol generator)")
-            return None, None
-        assert model_bridge is not None, "CV model bridge should be available"
-        
-        # Run cross validation using Ax's built-in function with the CV model bridge
-        cv = cross_validate(model=model_bridge, folds=-1)  # Leave-one-out CV
-        fig = interact_cross_validation_plotly(cv)
-        
-        # Extract actual and predicted values from the "In-sample" trace (trace 1)
-        in_sample_trace = fig["data"][1]
-        y_act = np.array(in_sample_trace.x)
-        y_pred = np.array(in_sample_trace.y)
-        
-        # Calculate R² using Ax's cross validation predictions
-        ax_cv_r2 = r2_score(y_act, y_pred)
-        print(f"  Ax CV R²: {ax_cv_r2:.4f}")
-        
-        # Extract uncertainty directly from the plot data as requested
-        assert hasattr(in_sample_trace, 'error_y') and in_sample_trace.error_y is not None, "No uncertainty data available from Ax CV"
-        # Get standard errors from the plot
-        pred_std = np.array(in_sample_trace.error_y.array)
-        
-        # Convert to 95% confidence intervals using the extracted std errors
-        lower = y_pred - 1.96 * pred_std
-        upper = y_pred + 1.96 * pred_std
-        
-        interval_scores = interval_score(y_act, lower, upper)
-        ax_cv_interval_score = np.mean(interval_scores)
-        print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
-        
-        return ax_cv_r2, ax_cv_interval_score
-        
-    except Exception as e:
-        print(f"Ax cross validation failed: {e}")
+    # Mirror all completed trials from the main client onto the CV client (attach only missing ones)
+    df_main = ax_client.get_trials_data_frame()
+    df_cv = ax_client_cv.get_trials_data_frame()
+    # Use rounded parameter tuples as unique keys to avoid relying on arm_name
+    existing_params = set()
+    if not df_cv.empty:
+        for _, r in df_cv.iterrows():
+            existing_params.add((round(float(r["x1"]), 6), round(float(r["x2"]), 6)))
+    for _, row in df_main.sort_values("trial_index").iterrows():
+        key = (round(float(row["x1"]), 6), round(float(row["x2"]), 6))
+        if key in existing_params:
+            continue
+        params = {"x1": float(row["x1"]), "x2": float(row["x2"]) }
+        _, t_idx_cv = ax_client_cv.attach_trial(parameters=params)
+        ax_client_cv.complete_trial(trial_index=t_idx_cv, raw_data=float(row[obj1_name]))
+        existing_params.add(key)
+
+    # Need at least 2 points for LOO CV to be meaningful
+    df_cv = ax_client_cv.get_trials_data_frame()
+    if len(df_cv) < 2:
         return None, None
+
+    # Ensure the CV model is fit to the latest data on every call by triggering a refit
+    # via a one-off generation, then abandon that transient trial.
+    _ , tmp_trial_idx = ax_client_cv.get_next_trial()
+    ax_client_cv.abandon_trial(tmp_trial_idx)
+    model_bridge = ax_client_cv.generation_strategy.model
+
+    # Cross-validate and compute R²
+    cv = cross_validate(model=model_bridge, folds=-1)
+    fig = interact_cross_validation_plotly(cv)
+    # In Ax, data[0] is diagonal, data[1] is the error scatter trace for first metric
+    trace = fig.data[1]
+    y_act = np.array(trace.x)  # type: ignore[attr-defined]
+    y_pred = np.array(trace.y)  # type: ignore[attr-defined]
+    print(f"  Ax CV points: {len(y_act)}")
+    ax_cv_r2 = r2_score(y_act, y_pred)
+    print(f"  Ax CV R²: {ax_cv_r2:.4f}")
+
+    # Compute interval score using uncertainty bars from the CV plot (LOO predictions)
+    # Pull error bars (95% CI half-width) from the CV plot trace and compute interval score
+    err = trace.error_y  # type: ignore[attr-defined]
+    if getattr(err, "array", None) is not None:
+        err_array = np.asarray(err.array, dtype=float)
+    else:
+        err_array = np.full_like(y_pred, float(err.value), dtype=float)
+    lower = y_pred - err_array
+    upper = y_pred + err_array
+    interval_scores = interval_score(y_act, lower, upper)
+    ax_cv_interval_score = float(np.mean(interval_scores))
+    print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
+
+    # Save the interactive Plotly CV figure as HTML (for spot-checking)
+    cv_dir = Path(__file__).parent / "cv_plots"
+    cv_dir.mkdir(parents=True, exist_ok=True)
+    cv_html_path = cv_dir / f"branin_cv_plot_trial_{trial_index}.html"
+    fig.write_html(str(cv_html_path), include_plotlyjs="cdn")
+    print(f"  Saved Ax CV Plotly HTML: {cv_html_path}")
+
+    # Save a simple parity plot with error bars as PNG using Matplotlib
+    cv_out_path = cv_dir / f"branin_cv_plot_trial_{trial_index}.png"
+    plt.figure(figsize=(5, 5), dpi=150)
+    vmin = float(min(np.min(y_act), np.min(y_pred)))
+    vmax = float(max(np.max(y_act), np.max(y_pred)))
+    pad = 0.05 * (vmax - vmin if vmax > vmin else 1.0)
+    lo, hi = vmin - pad, vmax + pad
+    plt.plot([lo, hi], [lo, hi], 'k--', alpha=0.5, label='y = x')
+    plt.errorbar(y_act, y_pred, yerr=err_array, fmt='o', color='#1f77b4',
+                 ecolor='lightgray', elinewidth=1, capsize=2, alpha=0.8)
+    plt.xlabel('Observed')
+    plt.ylabel('Predicted (LOO)')
+    plt.title(f'Ax CV (trial {trial_index})')
+    plt.tight_layout()
+    plt.savefig(cv_out_path)
+    plt.close()
+    print(f"  Saved Ax CV Matplotlib PNG: {cv_out_path}")
+
+    return ax_cv_r2, ax_cv_interval_score
 
 
 def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, result):
@@ -130,64 +158,59 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, re
     if len(df) < 3:
         return None
     
-    try:
-        # ===== GP-based metrics (gpcheck) =====
-        # Prepare data for GP model
-        train_X = torch.tensor(df[['x1', 'x2']].values, dtype=torch.float32)
-        train_Y = torch.tensor(df[obj1_name].values, dtype=torch.float32).unsqueeze(-1)
-        
-        # Fit GP model using gpcheck
-        config = GPConfig(seed=42)
-        gp_model = GPModel(config)
-        gp_model.fit(train_X, train_Y)
-        
-        # Calculate GP-based metrics
-        mean_pred, std_pred = gp_model.predict(train_X)
-        
-        gp_r2 = r2_score(train_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
-        
-        ls, imp = gp_model.get_lengthscales()
-        imp_dict = importance_concentration(imp)
-        
-        loo = loo_pseudo_likelihood(gp_model.model, train_X, train_Y)
-        
-        rank_tau = kendalltau(train_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
-        
-        # Calculate interval score using GP predictions
-        y_true = train_Y.squeeze().detach().cpu().numpy()
-        y_pred_mean = mean_pred.detach().cpu().numpy()
-        y_pred_std = std_pred.detach().cpu().numpy()
-        
-        # Convert to 95% confidence intervals
-        lower, upper = normal_95ci(y_pred_mean, y_pred_std)
-        interval_scores = interval_score(y_true, lower, upper)
-        mean_interval_score = np.mean(interval_scores)
-        
-        # ===== Ax cross validation metrics =====
-        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client_cv, trial_index, x1, x2, result)
-        
-        metrics = {
-            'trial': trial_index,
-            'gp_r2': gp_r2,  # GP-based R²
-            'ax_cv_r2': ax_cv_r2,  # Ax cross validation R²
-            'interval_score': mean_interval_score,  # Mean interval score (GP-based)
-            'ax_cv_interval_score': ax_cv_interval_score,  # Mean interval score (Ax CV)
-            'imp_cumsum': imp_dict,
-            'loo_nll': loo,
-            'rank_tau': rank_tau,
-            'lengthscales': ls,
-            'importance': imp
-        }
-        
-        # Print metrics for this iteration
-        print(f"  GP R²: {gp_r2:.4f}, LOO NLL: {loo:.2f}")
-        print(f"  GP Interval Score: {mean_interval_score:.4f}")
-        
-        return metrics
-        
-    except Exception as e:
-        print(f"Metrics calculation failed: {e}")
-        return None
+    # ===== GP-based metrics (gpcheck) =====
+    # Prepare data for GP model
+    train_X = torch.tensor(df[['x1', 'x2']].values, dtype=torch.float32)
+    train_Y = torch.tensor(df[obj1_name].values, dtype=torch.float32).unsqueeze(-1)
+
+    # Fit GP model using gpcheck
+    config = GPConfig(seed=42)
+    gp_model = GPModel(config)
+    gp_model.fit(train_X, train_Y)
+
+    # Calculate GP-based metrics
+    mean_pred, std_pred = gp_model.predict(train_X)
+
+    gp_r2 = r2_score(train_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
+
+    ls, imp = gp_model.get_lengthscales()
+    imp_dict = importance_concentration(imp)
+
+    loo = loo_pseudo_likelihood(gp_model.model, train_X, train_Y)
+
+    rank_tau = kendalltau(train_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
+
+    # Calculate interval score using GP predictions
+    y_true = train_Y.squeeze().detach().cpu().numpy()
+    y_pred_mean = mean_pred.detach().cpu().numpy()
+    y_pred_std = std_pred.detach().cpu().numpy()
+
+    # Convert to 95% confidence intervals
+    lower, upper = normal_95ci(y_pred_mean, y_pred_std)
+    interval_scores = interval_score(y_true, lower, upper)
+    mean_interval_score = np.mean(interval_scores)
+
+    # ===== Ax cross validation metrics =====
+    ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index)
+
+    metrics = {
+        'trial': trial_index,
+        'gp_r2': gp_r2,
+        'ax_cv_r2': ax_cv_r2,
+        'interval_score': mean_interval_score,
+        'ax_cv_interval_score': ax_cv_interval_score,
+        'imp_cumsum': imp_dict,
+        'loo_nll': loo,
+        'rank_tau': rank_tau,
+        'lengthscales': ls,
+        'importance': imp
+    }
+
+    # Print metrics for this iteration
+    print(f"  GP R²: {gp_r2:.4f}, LOO NLL: {loo:.2f}")
+    print(f"  GP Interval Score: {mean_interval_score:.4f}")
+
+    return metrics
 
 
 # Create main ax client for optimization
@@ -204,16 +227,12 @@ ax_client.create_experiment(
 )
 
 # Create separate AxClient for cross-validation with custom generation strategy
-# This client will mirror the main client's data using Sobol (3 trials) -> BOTORCH_MODULAR
+# This client mirrors the main client's data and uses BOTORCH_MODULAR immediately (no Sobol init)
 gs_cv = GenerationStrategy(
     steps=[
         GenerationStep(
-            model=Models.SOBOL,
-            num_trials=3,  # Fixed to 3 Sobol trials
-        ),
-        GenerationStep(
             model=Models.BOTORCH_MODULAR,
-            num_trials=-1,  # Use BOTORCH_MODULAR for remaining trials
+            num_trials=-1,  # Use BOTORCH_MODULAR for all trials
         )
     ]
 )
@@ -232,9 +251,9 @@ ax_client_cv.create_experiment(
 # Track metrics per iteration
 all_metrics = []
 
-# Run 10 trials with iteration-by-iteration metrics calculation
-print("Running Branin optimization campaign with 10 trials...")
-for i in range(10):
+# Run 50 trials with iteration-by-iteration metrics calculation
+print("Running Branin optimization campaign with 50 trials...")
+for i in range(50):
     parameterization, trial_index = ax_client.get_next_trial()
 
     # extract parameters
@@ -302,14 +321,14 @@ if all_metrics:
     rank_tau_values = [m['rank_tau'] for m in all_metrics] 
     loo_values = [m['loo_nll'] for m in all_metrics]
     
-    # Extract Ax CV R² and interval scores (may have None values)
-    ax_cv_r2_values = [m['ax_cv_r2'] for m in all_metrics if m['ax_cv_r2'] is not None]
+    # Extract Ax CV R² and interval scores (filter None/NaN)
+    ax_cv_r2_values = [m['ax_cv_r2'] for m in all_metrics if (m['ax_cv_r2'] is not None and np.isfinite(m['ax_cv_r2']))]
     interval_score_values = [m['interval_score'] for m in all_metrics if m['interval_score'] is not None]
-    ax_cv_interval_score_values = [m['ax_cv_interval_score'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
+    ax_cv_interval_score_values = [m['ax_cv_interval_score'] for m in all_metrics if (m['ax_cv_interval_score'] is not None and np.isfinite(m['ax_cv_interval_score']))]
     
-    ax_cv_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_r2'] is not None]
+    ax_cv_trial_nums = [m['trial'] for m in all_metrics if (m['ax_cv_r2'] is not None and np.isfinite(m['ax_cv_r2']))]
     interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
-    ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
+    ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if (m['ax_cv_interval_score'] is not None and np.isfinite(m['ax_cv_interval_score']))]
     
     # Create 6 y-axes as requested: 1 left + 5 right
     # Left axis: Best-so-far trace
@@ -332,7 +351,7 @@ if all_metrics:
     line_best = ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
                          label='Best so far', linestyle='-', zorder=1)
     
-    # Plot R² values on right axis 1 (fixed 0-1 range)
+    # Plot R² values on right axis 1
     line_gp_r2 = ax2_r2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
     lines = line_best + line_gp_r2
     
@@ -342,8 +361,14 @@ if all_metrics:
                               linewidth=2, linestyle='--', zorder=3)
         lines += line_ax_r2
     
-    # Set R² axis range to 0-1
-    ax2_r2.set_ylim(0, 1)
+    # Set R² axis range dynamically to include negative values if present
+    r2_all = list(gp_r2_values)
+    if ax_cv_r2_values:
+        r2_all += list(ax_cv_r2_values)
+    r2_min = min(r2_all) if r2_all else 0.0
+    r2_max = max(r2_all) if r2_all else 1.0
+    margin = max(1e-3, 0.05 * (r2_max - r2_min if r2_max > r2_min else 1.0))
+    ax2_r2.set_ylim(r2_min - margin, r2_max + margin)
     
     # Plot rank tau correlation on right axis 2 (fixed -1 to 1 range)
     line_tau = ax2_tau.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
@@ -405,8 +430,10 @@ else:
     ax2.set_title("Evaluation Metrics")
 
 plt.tight_layout()
-plt.savefig('/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/bo_benchmarks/demonstrations/branin_campaign_demonstration_results.png', 
-            dpi=150, bbox_inches='tight')
+# Save figure to the same directory as this script
+_out_path = Path(__file__).with_name('branin_campaign_demonstration_results.png')
+_out_path.parent.mkdir(parents=True, exist_ok=True)
+plt.savefig(str(_out_path), dpi=150, bbox_inches='tight')
 plt.show()
 
 print(f"\nCompleted {len(all_metrics)} iteration(s) with evaluation metrics")
