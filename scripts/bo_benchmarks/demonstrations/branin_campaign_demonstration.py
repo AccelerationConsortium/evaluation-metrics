@@ -74,31 +74,37 @@ def calculate_ax_cross_validation_metrics(ax_client, trial_index):
         # Get the model bridge from the generation strategy 
         model_bridge = ax_client.generation_strategy.model
         if model_bridge is None:
-            print("  Main client model bridge is None")
+            print("  Model bridge is None")
             return None, None
         
         # Run cross validation using Ax's built-in function with the model bridge
         cv = cross_validate(model=model_bridge, folds=-1)  # Leave-one-out CV
         fig = interact_cross_validation_plotly(cv)
-        y_act = fig["data"][1].x
-        y_pred = fig["data"][1].y
+        
+        # Extract actual and predicted values from the "In-sample" trace (trace 1)
+        in_sample_trace = fig["data"][1]
+        y_act = np.array(in_sample_trace.x)
+        y_pred = np.array(in_sample_trace.y)
         
         # Calculate R² using Ax's cross validation predictions
         ax_cv_r2 = r2_score(y_act, y_pred)
         print(f"  Ax CV R²: {ax_cv_r2:.4f}")
         
-        # For interval score calculation, we need uncertainty estimates
-        # We'll use the residuals to estimate uncertainty
-        residuals = np.array(y_act) - np.array(y_pred)
-        pred_std = np.std(residuals)  # Simple estimate of prediction uncertainty
-        
-        # Convert to 95% confidence intervals using the estimated std
-        lower = np.array(y_pred) - 1.96 * pred_std
-        upper = np.array(y_pred) + 1.96 * pred_std
-        
-        interval_scores = interval_score(np.array(y_act), lower, upper)
-        ax_cv_interval_score = np.mean(interval_scores)
-        print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
+        # Extract uncertainty directly from the plot data as requested
+        if hasattr(in_sample_trace, 'error_y') and in_sample_trace.error_y is not None:
+            # Get standard errors from the plot
+            pred_std = np.array(in_sample_trace.error_y.array)
+            
+            # Convert to 95% confidence intervals using the extracted std errors
+            lower = y_pred - 1.96 * pred_std
+            upper = y_pred + 1.96 * pred_std
+            
+            interval_scores = interval_score(y_act, lower, upper)
+            ax_cv_interval_score = np.mean(interval_scores)
+            print(f"  Ax CV Interval Score: {ax_cv_interval_score:.4f}")
+        else:
+            print("  No uncertainty data available from Ax CV")
+            ax_cv_interval_score = None
         
         return ax_cv_r2, ax_cv_interval_score
         
@@ -273,68 +279,84 @@ if all_metrics:
     interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
     ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if m['ax_cv_interval_score'] is not None]
     
-    # Use multiple y-axes for different scales
-    ax2_twin1 = ax2.twinx()  # R² values will be on the right
-    ax2_twin2 = ax2.twinx()
-    ax2_twin3 = ax2.twinx()
-    ax2_twin2.spines['right'].set_position(('outward', 60))
-    ax2_twin3.spines['right'].set_position(('outward', 120))
+    # Create 6 y-axes as requested: 1 left + 5 right
+    # Left axis: Best-so-far trace
+    # Right axes: R² (shared), Rank τ, LOO NLL, GP Interval Score, Ax CV Interval Score
+    
+    ax2_r2 = ax2.twinx()       # Right axis 1: R² values (0-1)
+    ax2_tau = ax2.twinx()      # Right axis 2: Rank correlation τ (-1 to 1)  
+    ax2_loo = ax2.twinx()      # Right axis 3: LOO NLL
+    ax2_gp_int = ax2.twinx()   # Right axis 4: GP Interval Score
+    ax2_ax_int = ax2.twinx()   # Right axis 5: Ax CV Interval Score
+    
+    # Position the additional y-axes
+    ax2_tau.spines['right'].set_position(('outward', 60))
+    ax2_loo.spines['right'].set_position(('outward', 120))
+    ax2_gp_int.spines['right'].set_position(('outward', 180))
+    ax2_ax_int.spines['right'].set_position(('outward', 240))
     
     # Plot best-so-far trace on the left (main) y-axis
     best_so_far = np.minimum.accumulate(df[objective_name])
     line_best = ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
                          label='Best so far', linestyle='-', zorder=1)
     
-    # Plot R² values on the right y-axis (ax2_twin1)
-    line1 = ax2_twin1.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
-    lines = line_best + line1
+    # Plot R² values on right axis 1 (fixed 0-1 range)
+    line_gp_r2 = ax2_r2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
+    lines = line_best + line_gp_r2
     
-    # Plot Ax CV R² if available (also on right y-axis)
+    # Plot Ax CV R² if available (also on right axis 1)
     if ax_cv_r2_values:
-        line4 = ax2_twin1.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
+        line_ax_r2 = ax2_r2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
                               linewidth=2, linestyle='--', zorder=3)
-        lines += line4
+        lines += line_ax_r2
     
-    # Set appropriate y-axis limits for R² values
-    r2_values_all = gp_r2_values + (ax_cv_r2_values if ax_cv_r2_values else [])
-    if r2_values_all:
-        r2_min, r2_max = min(r2_values_all), max(r2_values_all)
-        r2_range = r2_max - r2_min
-        ax2_twin1.set_ylim(r2_min - 0.1 * r2_range, r2_max + 0.1 * r2_range)
+    # Set R² axis range to 0-1
+    ax2_r2.set_ylim(0, 1)
     
-    # Plot other metrics on additional y-axes
-    line2 = ax2_twin2.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
-    line3 = ax2_twin3.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
-    lines += line2 + line3
+    # Plot rank tau correlation on right axis 2 (fixed -1 to 1 range)
+    line_tau = ax2_tau.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
+    lines += line_tau
+    ax2_tau.set_ylim(-1, 1)
     
-    # Plot GP-based interval score if available  
+    # Plot LOO NLL on right axis 3 (auto range)
+    line_loo = ax2_loo.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
+    lines += line_loo
+    
+    # Plot GP interval score on right axis 4 (auto range)
     if interval_score_values:
-        line5 = ax2_twin3.plot(interval_trial_nums, interval_score_values, 'purple', label='GP Interval Score', 
+        line_gp_int = ax2_gp_int.plot(interval_trial_nums, interval_score_values, 'purple', label='GP Interval Score', 
                               marker='v', linewidth=2, linestyle=':', zorder=3)
-        lines += line5
+        lines += line_gp_int
     
-    # Plot Ax CV interval score if available
+    # Plot Ax CV interval score on right axis 5 (auto range)
     if ax_cv_interval_score_values:
-        line6 = ax2_twin3.plot(ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'magenta', 
+        line_ax_int = ax2_ax_int.plot(ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'magenta', 
                               label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.', zorder=3)
-        lines += line6
+        lines += line_ax_int
         
+    # Set axis labels and colors
     ax2.set_xlabel("Trial Number")
     ax2.set_ylabel(f"Best {objective_name}", color='gray')
-    ax2_twin1.set_ylabel("R² Values", color='r')
-    ax2_twin2.set_ylabel("Rank Correlation (τ)", color='g')
-    ax2_twin3.set_ylabel("LOO NLL / Interval Score", color='b')
+    ax2_r2.set_ylabel("R² Values", color='red')
+    ax2_tau.set_ylabel("Rank Correlation (τ)", color='green')
+    ax2_loo.set_ylabel("LOO NLL", color='blue')
+    ax2_gp_int.set_ylabel("GP Interval Score", color='purple')
+    ax2_ax_int.set_ylabel("Ax CV Interval Score", color='magenta')
     
+    # Set tick colors to match y-axis colors
     ax2.tick_params(axis='y', labelcolor='gray')
-    ax2_twin1.tick_params(axis='y', labelcolor='r')
-    ax2_twin2.tick_params(axis='y', labelcolor='g')
-    ax2_twin3.tick_params(axis='y', labelcolor='b')
+    ax2_r2.tick_params(axis='y', labelcolor='red')
+    ax2_tau.tick_params(axis='y', labelcolor='green')
+    ax2_loo.tick_params(axis='y', labelcolor='blue')
+    ax2_gp_int.tick_params(axis='y', labelcolor='purple')
+    ax2_ax_int.tick_params(axis='y', labelcolor='magenta')
     
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     
-    # Combined legend - place outside plot area to avoid overlap
+    # Place legend inside plot with transparency to avoid axis overlap
     labels = [l.get_label() for l in lines]
-    ax2.legend(lines, labels, bbox_to_anchor=(1.05, 1), loc='upper left')
+    legend = ax2.legend(lines, labels, loc='upper right', framealpha=0.8, fancybox=True, shadow=True)
+    legend.get_frame().set_facecolor('white')
     
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
     print(f"Rank tau correlation values: {rank_tau_values}")
