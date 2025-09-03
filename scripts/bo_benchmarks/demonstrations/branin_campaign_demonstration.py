@@ -128,6 +128,19 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
     fig.write_html(str(cv_html_path), include_plotlyjs="cdn")
     print(f"  Saved Ax CV Plotly HTML: {cv_html_path}")
 
+    # Also save the CV data for slider creation
+    cv_data = {
+        'trial': trial_index,
+        'x': y_act.tolist(),
+        'y': y_pred.tolist(), 
+        'error_y': err_array.tolist()
+    }
+    import json
+    cv_data_path = cv_dir / f"branin_cv_data_trial_{trial_index}.json"
+    with open(cv_data_path, 'w') as f:
+        json.dump(cv_data, f)
+    print(f"  Saved CV data: {cv_data_path}")
+
     # Save a simple parity plot with error bars as PNG using Matplotlib (for GIF creation)
     cv_out_path = cv_dir / f"branin_cv_plot_trial_{trial_index}.png"
     plt.figure(figsize=(5, 5), dpi=150)
@@ -322,7 +335,7 @@ if all_metrics:
     print(f"Importance Std Dev: {final_metrics['imp_std']:.4f}")
 
 # Create stacked vertical plots as requested
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 14), dpi=150)
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 14), dpi=150)  # Increased width by 1.5x
 
 # Plot 1: Standard "best so far" trace - use string name instead of list
 objective_name = objectives[0]  # Get the first (and only) objective name as string
@@ -590,64 +603,113 @@ if cv_dir.exists() and all_metrics:
                 images.append(imageio.imread(png_file))
             
             gif_path = cv_dir / "branin_cv_evolution.gif"
-            imageio.mimsave(gif_path, images, duration=0.8)
+            imageio.mimsave(gif_path, images, duration=3.2)  # 4x slower (was 0.8, now 3.2)
             print(f"Created GIF: {gif_path}")
             
             # Try to create plotly slider figure
             try:
-                # Create plotly figure with slider from the individual CV data
+                # Create plotly figure with slider from the saved CV data JSON files
                 slider_fig = go.Figure()
                 
-                # Store data for each trial
-                all_cv_data = []
+                # Load data for each trial from the saved JSON files
+                trial_data = []
                 for trial_idx in [m['trial'] for m in all_metrics if m['ax_cv_r2'] is not None]:
-                    html_file = cv_dir / f"branin_cv_plot_trial_{trial_idx}.html"
-                    if html_file.exists():
-                        # Extract data from individual trial (this is simplified)
-                        # In practice, we'd need to store the CV data during calculation
-                        all_cv_data.append(trial_idx)
+                    json_file = cv_dir / f"branin_cv_data_trial_{trial_idx}.json"
+                    if json_file.exists():
+                        try:
+                            import json
+                            with open(json_file, 'r') as f:
+                                data = json.load(f)
+                            trial_data.append(data)
+                        except Exception as e:
+                            print(f"Could not load JSON data from trial {trial_idx}: {e}")
+                            continue
                 
-                if all_cv_data:
-                    # Create a simplified slider plot showing progression
-                    for i, trial_idx in enumerate(all_cv_data):
-                        # Add empty traces for slider structure
+                if trial_data:
+                    # Add diagonal reference line
+                    all_x = []
+                    all_y = []
+                    for trial in trial_data:
+                        all_x.extend(trial['x'])
+                        all_y.extend(trial['y'])
+                    
+                    if all_x and all_y:
+                        vmin = min(min(all_x), min(all_y))
+                        vmax = max(max(all_x), max(all_y))
+                        pad = 0.05 * (vmax - vmin if vmax > vmin else 1.0)
+                        lo, hi = vmin - pad, vmax + pad
+                        
+                        # Add diagonal line (always visible)
                         slider_fig.add_trace(
                             go.Scatter(
-                                x=[0, 1], y=[0, 1], 
+                                x=[lo, hi], y=[lo, hi],
                                 mode='lines',
-                                name=f'Trial {trial_idx}',
-                                visible=(i == 0)  # Only first trace visible initially
+                                line=dict(color='black', dash='dash'),
+                                name='y = x',
+                                showlegend=True
                             )
                         )
                     
+                    # Add data for each trial
+                    for i, trial in enumerate(trial_data):
+                        if trial['x'] and trial['y']:
+                            # Add scatter plot with error bars
+                            error_y = None
+                            if trial['error_y']:
+                                error_y = dict(
+                                    type='data',
+                                    array=trial['error_y'],
+                                    visible=True,
+                                    color='lightgray'
+                                )
+                            
+                            slider_fig.add_trace(
+                                go.Scatter(
+                                    x=trial['x'], 
+                                    y=trial['y'],
+                                    mode='markers',
+                                    marker=dict(color='#1f77b4', size=6),
+                                    error_y=error_y,
+                                    name=f'Trial {trial["trial"]}',
+                                    visible=(i == 0)  # Only first trial visible initially
+                                )
+                            )
+                    
                     # Create slider steps
                     steps = []
-                    for i, trial_idx in enumerate(all_cv_data):
+                    for i, trial in enumerate(trial_data):
+                        # Make diagonal line always visible, toggle data traces
+                        visibility = [True]  # Diagonal line always visible
+                        visibility.extend([False] * len(trial_data))  # All data traces hidden
+                        visibility[i + 1] = True  # Show current trial's data
+                        
                         step = dict(
                             method="update",
-                            args=[{"visible": [False] * len(all_cv_data)}],
-                            label=f"Trial {trial_idx}"
+                            args=[{"visible": visibility}],
+                            label=f"Trial {trial['trial']}"
                         )
-                        step["args"][0]["visible"][i] = True
                         steps.append(step)
                     
                     sliders = [dict(
                         active=0,
-                        currentvalue={"prefix": "Trial: "},
+                        currentvalue={"prefix": "Showing Trial: "},
                         pad={"t": 50},
                         steps=steps
                     )]
                     
                     slider_fig.update_layout(
                         sliders=sliders,
-                        title="Cross-Validation Evolution (Slider)",
+                        title="Cross-Validation Evolution (Interactive Slider)",
                         xaxis_title="Observed",
-                        yaxis_title="Predicted"
+                        yaxis_title="Predicted (LOO)",
+                        showlegend=True
                     )
                     
                     slider_html_path = cv_dir / "branin_cv_evolution_slider.html" 
                     slider_fig.write_html(str(slider_html_path), include_plotlyjs="cdn")
                     print(f"Created Plotly slider figure: {slider_html_path}")
+                else:
+                    print("No valid trial data found for slider figure")
                     
             except Exception as e:
                 print(f"Could not create plotly slider figure: {e}")
