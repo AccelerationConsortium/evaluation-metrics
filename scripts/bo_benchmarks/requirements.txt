@@ -2,3 +2,6 @@ ax-platform<1
 submitit>=1.5.0
 cloudpickle>=3.0.0
 matplotlib>=3.0.0
+plotly>=5.0.0
+imageio>=2.0.0
+pillow>=8.0.0
