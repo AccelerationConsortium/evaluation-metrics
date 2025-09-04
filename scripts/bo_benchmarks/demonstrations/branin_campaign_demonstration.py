@@ -352,6 +352,7 @@ ax1.set_ylabel(f"{objective_name} objective")
 ax1.set_title("Optimization Progress")
 ax1.legend()
 ax1.grid(True, alpha=0.3)
+ax1.set_xlim(-10, None)  # Add whitespace for legend
 
 # Plot 2: Evaluation metrics over trials (iteration-by-iteration results)
 if all_metrics:
@@ -371,25 +372,23 @@ if all_metrics:
     interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
     ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if (m['ax_cv_interval_score'] is not None and np.isfinite(m['ax_cv_interval_score']))]
     
-    # Create 8 y-axes as requested: 1 left + 7 right
+    # Create 7 y-axes as requested: 1 left + 6 right
     # Left axis: Best-so-far trace
-    # Right axes: R² (shared), Rank τ, LOO NLL, GP Interval Score, Ax CV Interval Score, Imp Mean, Imp Std
+    # Right axes: R² (shared), Rank τ, LOO NLL, GP Interval Score, Ax CV Interval Score, Imp Std
     
     ax2_r2 = ax2.twinx()       # Right axis 1: R² values (0-1)
     ax2_tau = ax2.twinx()      # Right axis 2: Rank correlation τ (-1 to 1)  
     ax2_loo = ax2.twinx()      # Right axis 3: LOO NLL
     ax2_gp_int = ax2.twinx()   # Right axis 4: GP Interval Score
     ax2_ax_int = ax2.twinx()   # Right axis 5: Ax CV Interval Score
-    ax2_imp_mean = ax2.twinx() # Right axis 6: Importance Mean
-    ax2_imp_std = ax2.twinx()  # Right axis 7: Importance Std Dev
+    ax2_imp_std = ax2.twinx()  # Right axis 6: Importance Std Dev
     
     # Position the additional y-axes
     ax2_tau.spines['right'].set_position(('outward', 60))
     ax2_loo.spines['right'].set_position(('outward', 120))
     ax2_gp_int.spines['right'].set_position(('outward', 180))
     ax2_ax_int.spines['right'].set_position(('outward', 240))
-    ax2_imp_mean.spines['right'].set_position(('outward', 300))
-    ax2_imp_std.spines['right'].set_position(('outward', 360))
+    ax2_imp_std.spines['right'].set_position(('outward', 300))
     
     # Plot best-so-far trace on the left (main) y-axis
     best_so_far = np.minimum.accumulate(df[objective_name])
@@ -440,12 +439,7 @@ if all_metrics:
                               label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.', zorder=3)
         lines += line_ax_int
     
-    # Plot importance mean on right axis 6 (auto range)
-    line_imp_mean = ax2_imp_mean.plot(trial_nums, imp_mean_values, 'brown', 
-                              label='Importance Mean', marker='h', linewidth=2, linestyle=':', zorder=3)
-    lines += line_imp_mean
-    
-    # Plot importance std dev on right axis 7 (auto range)
+    # Plot importance std dev on right axis 6 (auto range)
     line_imp_std = ax2_imp_std.plot(trial_nums, imp_std_values, 'pink', 
                               label='Importance Std', marker='p', linewidth=2, linestyle='-.', zorder=3)
     lines += line_imp_std
@@ -458,7 +452,6 @@ if all_metrics:
     ax2_loo.set_ylabel("LOO NLL", color='blue')
     ax2_gp_int.set_ylabel("GP Interval Score", color='purple')
     ax2_ax_int.set_ylabel("Ax CV Interval Score", color='magenta')
-    ax2_imp_mean.set_ylabel("Importance Mean", color='brown')
     ax2_imp_std.set_ylabel("Importance Std", color='pink')
     
     # Set tick colors to match y-axis colors
@@ -468,10 +461,10 @@ if all_metrics:
     ax2_loo.tick_params(axis='y', labelcolor='blue')
     ax2_gp_int.tick_params(axis='y', labelcolor='purple')
     ax2_ax_int.tick_params(axis='y', labelcolor='magenta')
-    ax2_imp_mean.tick_params(axis='y', labelcolor='brown')
     ax2_imp_std.tick_params(axis='y', labelcolor='pink')
     
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
+    ax2.set_xlim(-10, None)  # Add whitespace for legend
     
     # Place legend inside plot with white background and transparency
     labels = [l.get_label() for l in lines]
@@ -486,7 +479,6 @@ if all_metrics:
         print(f"GP Interval Score values: {interval_score_values}")
     if ax_cv_interval_score_values:
         print(f"Ax CV Interval Score values: {ax_cv_interval_score_values}")
-    print(f"Importance Mean values: {imp_mean_values}")
     print(f"Importance Std values: {imp_std_values}")
     
 else:
@@ -549,13 +541,12 @@ if all_metrics:
         )
     
     # Other metrics (will be on secondary y-axis, but we'll handle scaling)
-    colors = ['green', 'blue', 'purple', 'magenta', 'brown', 'pink']
+    colors = ['green', 'blue', 'purple', 'magenta', 'pink']
     metrics_data = [
         (trial_nums, rank_tau_values, 'Rank τ', 'square'),
         (trial_nums, loo_values, 'LOO NLL', 'triangle-up'),
         (interval_trial_nums, interval_score_values, 'GP Interval Score', 'triangle-down'),
         (ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'Ax CV Interval Score', 'star'),
-        (trial_nums, imp_mean_values, 'Importance Mean', 'hexagon'),
         (trial_nums, imp_std_values, 'Importance Std', 'pentagon')
     ]
     
@@ -595,8 +586,10 @@ if cv_dir.exists() and all_metrics:
         import imageio
         from PIL import Image
         
-        # Create GIF from PNG files
-        png_files = sorted(cv_dir.glob("branin_cv_plot_trial_*.png"))
+        # Create GIF from PNG files (sorted by trial number, not alphabetically)
+        import re
+        png_files = sorted(cv_dir.glob("branin_cv_plot_trial_*.png"), 
+                          key=lambda x: int(re.search(r'trial_(\d+)', x.name).group(1)))
         if png_files:
             images = []
             for png_file in png_files:
