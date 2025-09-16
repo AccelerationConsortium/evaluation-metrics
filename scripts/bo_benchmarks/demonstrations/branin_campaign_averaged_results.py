@@ -98,14 +98,9 @@ def calculate_iteration_metrics(df, objective_name, trial_index):
     gp_r2 = r2_score(y_test, y_pred_test)
     
     # Calculate uncertainty on test set for interval score
-    y_pred_test_with_var, y_var_test = model.predict(X_test_tensor, return_std=True)
-    if isinstance(y_pred_test_with_var, tuple):
-        y_pred_test_with_var = y_pred_test_with_var[0].detach().numpy().flatten()
-        y_var_test = y_var_test[0].detach().numpy().flatten()
-    else:
-        y_pred_test_with_var = y_pred_test_with_var.detach().numpy().flatten()
-        y_var_test = y_var_test.detach().numpy().flatten()
-    y_std_test = np.sqrt(y_var_test)
+    y_pred_test_with_var, y_std_test = model.predict(X_test_tensor)
+    y_pred_test_with_var = y_pred_test_with_var.detach().numpy().flatten()
+    y_std_test = y_std_test.detach().numpy().flatten()
     
     # 95% confidence intervals
     lower = y_pred_test_with_var - 1.96 * y_std_test
@@ -126,30 +121,17 @@ def calculate_iteration_metrics(df, objective_name, trial_index):
         rank_tau = 0.0
     
     # Calculate LOO negative log-likelihood
-    loo_nll = loo_pseudo_likelihood(X, y, model.kernel, model.noise_variance)
+    loo_nll = loo_pseudo_likelihood(model.model, X_train_tensor, y_train_tensor)
     
     # Calculate feature importance (inverse length scales)
     try:
-        # Access the model's kernel lengthscale
-        if hasattr(model.model, 'covar_module') and hasattr(model.model.covar_module, 'base_kernel'):
-            lengthscale = model.model.covar_module.base_kernel.lengthscale.detach().numpy()
-        elif hasattr(model.model, 'covar_module') and hasattr(model.model.covar_module, 'lengthscale'):
-            lengthscale = model.model.covar_module.lengthscale.detach().numpy()
-        else:
-            # Fallback: assume default lengthscales
-            lengthscale = np.ones(X.shape[1])
-        
-        if lengthscale.ndim == 0:
-            lengthscale = np.array([lengthscale.item()] * X.shape[1])
-        elif lengthscale.ndim == 2:
-            lengthscale = lengthscale.flatten()
-            
-        inv_lengthscales = 1.0 / (lengthscale + 1e-8)  # Add small value to avoid division by zero
-    except Exception:
-        inv_lengthscales = np.ones(X.shape[1])
-    
-    imp_mean = np.mean(inv_lengthscales)
-    imp_std = np.std(inv_lengthscales)
+        ls, imp = model.get_lengthscales()
+        imp_mean = np.mean(imp)
+        imp_std = np.std(imp)
+    except Exception as imp_e:
+        print(f"  Importance calculation failed: {imp_e}")
+        imp_mean = 0.5
+        imp_std = 0.0
     
     print(f"Trial {trial_index}: GP R² = {gp_r2:.4f}, Rank τ = {rank_tau:.4f}, LOO NLL = {loo_nll:.4f}")
     print(f"Trial {trial_index}: Interval Score = {interval_score_val:.4f}, Imp Std = {imp_std:.4f}")
