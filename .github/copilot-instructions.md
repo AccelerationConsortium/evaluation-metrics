@@ -19,7 +19,7 @@
 
 - Validate and access link content using available MCP tools (Playwright and/or Perplexity)
 - Search GitHub for relevant open-source alternatives to commercial tools
-- Prioritize official package documentation over inferred usage
+- Prioritize official package documentation over inferred usage by using Context7 MCP tool
 
 ## Communication Style
 
@@ -38,5 +38,18 @@
 
 ## Coding Agent
 
-- Set environment variables `PIP_TIMEOUT=100` and `PIP_RETRIES=2` prior to `conda` or `pip` installs
+- Set environment variables `PIP_TIMEOUT=600` and `PIP_RETRIES=2` prior to `conda` or `pip` installs
 - Include plots directly in your comment reply via `![image name](https://github.com/<user/org>/<repo>/blob/<commit-id>/<filename>?raw=true)`. For provenance, ensure you use the specific commit, not the branch name
+
+## Repo-specific
+
+- Activate the `balam-env` conda environment before running code (even if running on Niagara) or use a venv
+- When asked to SSH into BALAM, use `sgbaird@balam.scinet.utoronto.ca` and the `CCDB_SSH_PRIVATE_KEY`
+- When asked to SSH into Niagara, use `sgbaird@niagara.scinet.utoronto.ca` and the same `CCDB_SSH_PRIVATE_KEY`
+- Running test scripts locally is fine, but the only success metric is submitting jobs to the cluster via submitit and having those jobs complete successfully on the corresponding compute nodes with the right dependencies available. Nothing else counts
+- Use the perplexity MCP tool to refer to the BALAM (https://docs.scinet.utoronto.ca/index.php/Balam) and Niagara (https://docs.scinet.utoronto.ca/index.php/Niagara_Quickstart) docs to ensure consistency with cluster-specific requirements
+- After SSH'ing into the cluster, make sure to type "1" and "press enter" to trigger the Duo authentication step, which I'll approve manually on my end (wait up to 60s)
+- If you run into the message "Are you sure you want to continue connecting (yes/no/[fingerprint])?", type "yes" and make sure to "press enter"
+- Don't create any command line interfaces unless explicitly requested
+- If the SSH bash output gets too long and unwieldy, you can log out and recreate the SSH connection to refresh the terminal text
+- Never echo secrets such as the private SSH key
