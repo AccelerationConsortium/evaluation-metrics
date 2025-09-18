@@ -6,14 +6,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      PIP_TIMEOUT: 600
+      PIP_RETRIES: 2
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
+
       - name: Install package and dev dependencies
         run: |
           pip install -e .
+          pip install -r scripts/bo_benchmarks/requirements.txt
