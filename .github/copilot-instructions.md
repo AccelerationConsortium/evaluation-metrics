@@ -38,7 +38,7 @@
 
 ## Coding Agent
 
-- Set environment variables `PIP_TIMEOUT=100` and `PIP_RETRIES=2` prior to `conda` or `pip` installs
+- Set environment variables `PIP_TIMEOUT=600` and `PIP_RETRIES=2` prior to `conda` or `pip` installs
 - Include plots directly in your comment reply via `![image name](https://github.com/<user/org>/<repo>/blob/<commit-id>/<filename>?raw=true)`. For provenance, ensure you use the specific commit, not the branch name
 
 ## Repo-specific
