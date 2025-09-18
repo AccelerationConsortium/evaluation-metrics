@@ -19,7 +19,7 @@
 
 - Validate and access link content using available MCP tools (Playwright and/or Perplexity)
 - Search GitHub for relevant open-source alternatives to commercial tools
-- Prioritize official package documentation over inferred usage
+- Prioritize official package documentation over inferred usage by using Context7 MCP tool
 
 ## Communication Style
 
