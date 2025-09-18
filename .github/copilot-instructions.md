@@ -53,6 +53,3 @@
 - Don't create any command line interfaces unless explicitly requested
 - If the SSH bash output gets too long and unwieldy, you can log out and recreate the SSH connection to refresh the terminal text
 - Never echo secrets such as the private SSH key
-
-
-<!--- add as .github/copilot-instructions.md, see https://docs.github.com/en/enterprise-cloud@latest/copilot/using-github-copilot/coding-agent/best-practices-for-using-copilot-to-work-on-tasks for additional context --->
