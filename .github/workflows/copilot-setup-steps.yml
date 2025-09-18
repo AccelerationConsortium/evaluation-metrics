@@ -25,4 +25,3 @@ jobs:
       - name: Install package and dev dependencies
         run: |
           pip install -e .
-          pip install -r scripts/bo_benchmarks/requirements.txt
