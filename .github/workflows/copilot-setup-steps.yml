@@ -1,5 +1,10 @@
 name: "Copilot Setup Steps"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+  pull_request:
+    paths: [.github/workflows/copilot-setup-steps.yml]
 
 jobs:
   copilot-setup-steps:
@@ -11,14 +16,12 @@ jobs:
       PIP_RETRIES: 2
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
-
       - name: Install package and dev dependencies
         run: |
           pip install -e .
