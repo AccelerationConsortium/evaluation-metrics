@@ -12,6 +12,7 @@ from ax.plot.diagnostic import interact_cross_validation_plotly
 from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
 from ax.modelbridge.registry import Models
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
@@ -55,80 +56,192 @@ def branin(x1, x2):
 
 
 def interval_score(y_true, lower, upper, alpha=0.05):
-    """Calculate interval score for uncertainty quantification evaluation."""
+    """
+    Calculate interval score for uncertainty quantification evaluation.
+    
+    For 95% confidence intervals (alpha=0.05), the formula is:
+    f_interval = (upper - lower) + (2/alpha) * max(0, lower - y) + (2/alpha) * max(0, y - upper)
+    
+    Args:
+        y_true: True values
+        lower: Lower confidence bounds
+        upper: Upper confidence bounds 
+        alpha: Confidence level (0.05 for 95% CI)
+    
+    Returns:
+        Array of interval scores (lower is better)
+    """
     width = upper - lower
-    lower_penalty = 2 / alpha * np.maximum(0, lower - y_true)
-    upper_penalty = 2 / alpha * np.maximum(0, y_true - upper)
-    return width + lower_penalty + upper_penalty
+    below_penalty = np.maximum(0, lower - y_true)
+    above_penalty = np.maximum(0, y_true - upper)
+    return width + (2 / alpha) * below_penalty + (2 / alpha) * above_penalty
 
 
 def normal_95ci(mean, std):
-    """Convert normal distribution parameters to 95% confidence intervals."""
-    return mean - 1.96 * std, mean + 1.96 * std
+    """Convert mean and standard deviation to 95% confidence intervals."""
+    lower = mean - 1.96 * std
+    upper = mean + 1.96 * std
+    return lower, upper
 
 
 def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
-    """Calculate Ax cross-validation R² and interval score."""
-    if trial_index < 5:  # Need at least 5 trials for meaningful CV
-        return np.nan, np.nan
+    """
+    Calculate metrics using a separate Ax client dedicated to cross-validation.
+    """
+    if not HAS_GPCHECK:
+        return None, None
+        
+    # Mirror all completed trials from the main client onto the CV client (attach only missing ones)
+    df_main = ax_client.get_trials_data_frame()
+    df_cv = ax_client_cv.get_trials_data_frame()
+    # Use rounded parameter tuples as unique keys to avoid relying on arm_name
+    existing_params = set()
+    if not df_cv.empty:
+        for _, r in df_cv.iterrows():
+            existing_params.add((round(float(r["x1"]), 6), round(float(r["x2"]), 6)))
+    for _, row in df_main.sort_values("trial_index").iterrows():
+        key = (round(float(row["x1"]), 6), round(float(row["x2"]), 6))
+        if key in existing_params:
+            continue
+        params = {"x1": float(row["x1"]), "x2": float(row["x2"]) }
+        _, t_idx_cv = ax_client_cv.attach_trial(parameters=params)
+        ax_client_cv.complete_trial(trial_index=t_idx_cv, raw_data=float(row[obj1_name]))
+        existing_params.add(key)
+
+    # Need at least 2 points for LOO CV to be meaningful
+    df_cv = ax_client_cv.get_trials_data_frame()
+    if len(df_cv) < 2:
+        return None, None
+
+    try:
+        # Ensure the CV model is fit to the latest data on every call by triggering a refit
+        # via a one-off generation, then abandon that transient trial.
+        _ , tmp_trial_idx = ax_client_cv.get_next_trial()
+        ax_client_cv.abandon_trial(tmp_trial_idx)
+        model_bridge = ax_client_cv.generation_strategy.model
+
+        # Cross-validate and compute R²
+        cv = cross_validate(model=model_bridge, folds=-1)
+        fig = interact_cross_validation_plotly(cv)
+        # In Ax, data[0] is diagonal, data[1] is the error scatter trace for first metric
+        trace = fig.data[1]
+        y_act = np.array(trace.x)  # type: ignore[attr-defined]
+        y_pred = np.array(trace.y)  # type: ignore[attr-defined]
+        ax_cv_r2 = r2_score(y_act, y_pred)
+
+        # Compute interval score using uncertainty bars from the CV plot (LOO predictions)
+        # Pull error bars (95% CI half-width) from the CV plot trace and compute interval score
+        err = trace.error_y  # type: ignore[attr-defined]
+        if getattr(err, "array", None) is not None:
+            err_array = np.asarray(err.array, dtype=float)
+            lower = y_pred - err_array
+            upper = y_pred + err_array
+            interval_scores = interval_score(y_act, lower, upper)
+            ax_cv_interval_score = float(np.mean(interval_scores))
+        else:
+            ax_cv_interval_score = None
+
+        return ax_cv_r2, ax_cv_interval_score
+    except Exception as e:
+        print(f"  Warning: Ax CV calculation failed: {e}")
+        return None, None
+
+
+def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
+    """Calculate evaluation metrics after each trial using both GP model and Ax cross validation."""
+    if not HAS_GPCHECK:
+        return None
+        
+    # Skip if not enough trials
+    if trial_index < 3:
+        return None
+    
+    # Get all completed trials data
+    df = ax_client.get_trials_data_frame()
+    if len(df) < 3:
+        return None
     
     try:
-        # Ensure the CV client has the same trials as the main client
-        data = ax_client.experiment.fetch_data().df
-        if data.empty:
-            return np.nan, np.nan
-            
-        # Create parameters and complete trials in CV client if needed
-        for i in range(trial_index + 1):
-            if i >= len(ax_client_cv.experiment.trials):
-                trial = ax_client.experiment.trials[i]
-                params = trial.arm.parameters
-                trial_data = data[data['trial_index'] == i]
-                if not trial_data.empty:
-                    objective_value = trial_data['mean'].iloc[0]
-                    # Generate and complete trial in CV client
-                    _, cv_trial_index = ax_client_cv.get_next_trial(fixed_features=params)
-                    ax_client_cv.complete_trial(trial_index=cv_trial_index, raw_data=objective_value)
+        # ===== GP-based metrics (gpcheck) =====
+        # Prepare data for GP model with train-test split
+        all_X = torch.tensor(df[['x1', 'x2']].values, dtype=torch.float32)
+        all_Y = torch.tensor(df[obj1_name].values, dtype=torch.float32).unsqueeze(-1)
         
-        # Perform cross-validation if we have a fitted model
-        if hasattr(ax_client_cv.generation_strategy, 'model') and ax_client_cv.generation_strategy.model is not None:
-            cv_results = cross_validate(ax_client_cv.generation_strategy.model)
-            
-            # Calculate R² from CV predictions
-            y_true = []
-            y_pred = []
-            lower_bounds = []
-            upper_bounds = []
-            
-            for result in cv_results:
-                y_true.append(result.observed.data.mean)
-                y_pred.append(result.predicted.mean)
-                # Calculate 95% CI from predicted mean and std
-                pred_std = np.sqrt(result.predicted.covariance)
-                lower, upper = normal_95ci(result.predicted.mean, pred_std)
-                lower_bounds.append(lower)
-                upper_bounds.append(upper)
-            
-            # Calculate metrics
-            r2 = r2_score(y_true, y_pred) if len(y_true) > 1 else np.nan
-            interval_scores = interval_score(np.array(y_true), np.array(lower_bounds), np.array(upper_bounds))
-            mean_interval_score = np.mean(interval_scores)
-            
-            return r2, mean_interval_score
-        else:
-            return np.nan, np.nan
+        # Use 80-20 train-test split for realistic R² evaluation
+        n_total = len(all_X)
+        n_train = max(2, int(0.8 * n_total))  # Ensure at least 2 training points
+        
+        # Use fixed random indices for reproducible splits
+        np.random.seed(42 + trial_index)  # Different seed per trial for variation
+        indices = np.random.permutation(n_total)
+        train_indices = indices[:n_train]
+        test_indices = indices[n_train:]
+        
+        train_X = all_X[train_indices]
+        train_Y = all_Y[train_indices]
+        test_X = all_X[test_indices] if len(test_indices) > 0 else train_X  # Fallback to train if no test data
+        test_Y = all_Y[test_indices] if len(test_indices) > 0 else train_Y
+
+        # Fit GP model using gpcheck
+        config = GPConfig(seed=42 + trial_index)
+        gp_model = GPModel(config)
+        gp_model.fit(train_X, train_Y)
+
+        # Calculate GP-based metrics on test set
+        mean_pred, std_pred = gp_model.predict(test_X)
+
+        gp_r2 = r2_score(test_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
+
+        ls, imp = gp_model.get_lengthscales()
+        imp_dict = importance_concentration(imp)
+        
+        # Calculate mean and std dev of feature importances (inverse lengthscales)
+        imp_mean = np.mean(imp)
+        imp_std = np.std(imp)
+
+        loo = loo_pseudo_likelihood(gp_model.model, train_X, train_Y)
+
+        rank_tau = kendalltau(test_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
+
+        # Calculate interval score using GP predictions on test set
+        y_true = test_Y.squeeze().detach().cpu().numpy()
+        y_pred_mean = mean_pred.detach().cpu().numpy()
+        y_pred_std = std_pred.detach().cpu().numpy()
+
+        # Convert to 95% confidence intervals
+        lower, upper = normal_95ci(y_pred_mean, y_pred_std)
+        interval_scores = interval_score(y_true, lower, upper)
+        mean_interval_score = np.mean(interval_scores)
+
+        # ===== Ax cross validation metrics =====
+        ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index)
+
+        metrics = {
+            'trial': trial_index,
+            'gp_r2': gp_r2,
+            'ax_cv_r2': ax_cv_r2,
+            'gp_interval_score': mean_interval_score,
+            'ax_cv_interval_score': ax_cv_interval_score,
+            'imp_mean': imp_mean,
+            'imp_std': imp_std,
+            'loo_nll': loo,
+            'rank_tau': rank_tau,
+        }
+
+        return metrics
         
     except Exception as e:
-        # print(f"CV metrics calculation failed: {e}")
-        return np.nan, np.nan
+        print(f"  Warning: Metrics calculation failed for trial {trial_index}: {e}")
+        return None
 
 
-def run_single_campaign(campaign_id, num_trials=50, num_init_trials=5):
-    """Run a single optimization campaign and return results."""
+
+def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
+    """Run a single optimization campaign with metrics collection and return results."""
     print(f"Starting campaign {campaign_id}...")
     
     # Create main ax client for optimization
-    ax_client = AxClient(verbose_logging=False)  # Reduce logging
+    ax_client = AxClient(verbose_logging=False)
     ax_client.create_experiment(
         parameters=[
             {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
@@ -137,13 +250,43 @@ def run_single_campaign(campaign_id, num_trials=50, num_init_trials=5):
         objectives={obj1_name: ObjectiveProperties(minimize=True)},
     )
     
+    # Create separate AxClient for cross-validation with custom generation strategy
+    if HAS_GPCHECK:
+        gs_cv = GenerationStrategy(
+            steps=[
+                GenerationStep(
+                    model=Models.BOTORCH_MODULAR,
+                    num_trials=-1,  # Use BOTORCH_MODULAR for all trials
+                )
+            ]
+        )
+        ax_client_cv = AxClient(generation_strategy=gs_cv, verbose_logging=False)
+        ax_client_cv.create_experiment(
+            parameters=[
+                {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
+                {"name": "x2", "type": "range", "bounds": [0.0, 10.0]},
+            ],
+            objectives={obj1_name: ObjectiveProperties(minimize=True)},
+        )
+    else:
+        ax_client_cv = None
+    
     # Storage for results
     campaign_results = {
         'campaign_id': campaign_id,
         'trials': [],
         'best_values': [],
         'objective_values': [],
-        'parameters': []
+        'parameters': [],
+        'metrics': {
+            'gp_r2': [],
+            'ax_cv_r2': [],
+            'rank_tau': [],
+            'loo_nll': [],
+            'gp_interval_score': [],
+            'ax_cv_interval_score': [],
+            'importance_std': []
+        }
     }
     
     # Run optimization trials
@@ -182,6 +325,26 @@ def run_single_campaign(campaign_id, num_trials=50, num_init_trials=5):
                 best_value = objective_value
         
         campaign_results['best_values'].append(best_value)
+        
+        # Calculate metrics if available
+        if HAS_GPCHECK and trial_index >= 2:  # Need at least 3 trials for metrics
+            metrics = calculate_iteration_metrics(ax_client, ax_client_cv, trial_index)
+            if metrics:
+                campaign_results['metrics']['gp_r2'].append(metrics.get('gp_r2', np.nan))
+                campaign_results['metrics']['ax_cv_r2'].append(metrics.get('ax_cv_r2', np.nan))
+                campaign_results['metrics']['rank_tau'].append(metrics.get('rank_tau', np.nan))
+                campaign_results['metrics']['loo_nll'].append(metrics.get('loo_nll', np.nan))
+                campaign_results['metrics']['gp_interval_score'].append(metrics.get('gp_interval_score', np.nan))
+                campaign_results['metrics']['ax_cv_interval_score'].append(metrics.get('ax_cv_interval_score', np.nan))
+                campaign_results['metrics']['importance_std'].append(metrics.get('imp_std', np.nan))
+            else:
+                # Add NaN values if metrics calculation failed
+                for metric_name in campaign_results['metrics'].keys():
+                    campaign_results['metrics'][metric_name].append(np.nan)
+        else:
+            # Add NaN values for early trials
+            for metric_name in campaign_results['metrics'].keys():
+                campaign_results['metrics'][metric_name].append(np.nan)
         
         if trial_idx % 10 == 0:
             print(f"  Campaign {campaign_id}: Trial {trial_idx}, Current: {objective_value:.6f}, Best: {best_value:.6f}")
@@ -501,6 +664,41 @@ def create_composite_plot(all_campaigns, output_dir):
     mean_best = np.mean(best_values_matrix, axis=0)
     std_best = np.std(best_values_matrix, axis=0)
     
+    # Extract and average evaluation metrics across campaigns
+    all_gp_r2 = []
+    all_ax_cv_r2 = []
+    all_rank_tau = []
+    all_loo_nll = []
+    all_gp_interval = []
+    all_ax_cv_interval = []
+    all_importance_std = []
+    
+    for campaign in all_campaigns:
+        metrics = campaign.get('metrics', {})
+        
+        # Pad metrics to max_trials length
+        for metric_name in ['gp_r2', 'ax_cv_r2', 'rank_tau', 'loo_nll', 'gp_interval_score', 'ax_cv_interval_score', 'importance_std']:
+            if metric_name in metrics:
+                metric_vals = metrics[metric_name]
+                if len(metric_vals) < max_trials:
+                    # Pad with NaN for missing values
+                    metric_vals = metric_vals + [np.nan] * (max_trials - len(metric_vals))
+                
+                if metric_name == 'gp_r2':
+                    all_gp_r2.append(metric_vals)
+                elif metric_name == 'ax_cv_r2':
+                    all_ax_cv_r2.append(metric_vals)
+                elif metric_name == 'rank_tau':
+                    all_rank_tau.append(metric_vals)
+                elif metric_name == 'loo_nll':
+                    all_loo_nll.append(metric_vals)
+                elif metric_name == 'gp_interval_score':
+                    all_gp_interval.append(metric_vals)
+                elif metric_name == 'ax_cv_interval_score':
+                    all_ax_cv_interval.append(metric_vals)
+                elif metric_name == 'importance_std':
+                    all_importance_std.append(metric_vals)
+    
     # Create composite plot
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
     
@@ -516,61 +714,53 @@ def create_composite_plot(all_campaigns, output_dir):
     ax1.grid(True, alpha=0.3)
     ax1.legend()
     
-    # Bottom subplot: Average convergence characteristics (no uncertainty bands)
-    # Calculate average improvement rates and cumulative improvements
-    all_improvements = []
-    all_cumulative_improvements = []
+    # Bottom subplot: Average evaluation metrics (no uncertainty bands)
+    ax2.set_xlabel("Trial Number")
+    ax2.set_ylabel("Metric Values")
+    ax2.set_title("Average Evaluation Metrics Across 10 Repeat Campaigns")
+    ax2.grid(True, alpha=0.3)
     
-    for campaign in all_campaigns:
-        best_vals = campaign['best_values']
-        if len(best_vals) > 1:
-            improvements = []
-            for i in range(1, len(best_vals)):
-                improvement = best_vals[i-1] - best_vals[i]  # Positive means improvement
-                improvements.append(improvement)
-            
-            # Pad to max_trials-1 if needed
-            if len(improvements) < max_trials - 1:
-                improvements = improvements + [0] * (max_trials - 1 - len(improvements))
-            
-            all_improvements.append(improvements)
-            all_cumulative_improvements.append(np.cumsum(improvements))
+    # Plot metrics with different colors and markers - single axis approach for better visibility
+    colors = ['red', 'orange', 'green', 'blue', 'purple', 'magenta', 'brown']
+    markers = ['o', 'd', 's', '^', 'v', 'h', 'p']
+    linestyles = ['-', '--', '-.', ':', '-', '--', '-.']
     
-    if all_improvements:
-        all_improvements = np.array(all_improvements)
-        all_cumulative_improvements = np.array(all_cumulative_improvements)
-        
-        # Calculate averages
-        mean_improvements = np.mean(all_improvements, axis=0)
-        mean_cumulative = np.mean(all_cumulative_improvements, axis=0)
-        
-        improvement_trials = list(range(1, max_trials))
-        
-        # Plot average improvements
-        ax2.bar(improvement_trials, mean_improvements, alpha=0.7, color='green', 
-                label='Avg Improvement per Trial', width=0.8)
-        ax2.axhline(y=0, color='black', linestyle='-', alpha=0.5)
-        ax2.set_xlabel("Trial Number")
-        ax2.set_ylabel("Average Improvement")
-        ax2.set_title("Average Optimization Efficiency Across 10 Repeat Campaigns")
-        ax2.grid(True, alpha=0.3)
-        
-        # Add cumulative improvement on second y-axis
-        ax2_cum = ax2.twinx()
-        ax2_cum.plot(improvement_trials, mean_cumulative, 'orange', 
-                     label='Avg Cumulative Improvement', marker='s', linewidth=2)
-        ax2_cum.set_ylabel("Average Cumulative Improvement", color='orange')
-        ax2_cum.tick_params(axis='y', labelcolor='orange')
-        
-        # Combine legends
-        lines1, labels1 = ax2.get_legend_handles_labels()
-        lines2, labels2 = ax2_cum.get_legend_handles_labels()
-        ax2.legend(lines1 + lines2, labels1 + labels2, loc='best')
-        
-    else:
-        ax2.text(0.5, 0.5, 'Not enough data\nfor efficiency analysis', 
-                ha='center', va='center', transform=ax2.transAxes)
-        ax2.set_title("Average Optimization Efficiency Across 10 Repeat Campaigns")
+    plotted_lines = []
+    
+    # Plot averaged metrics
+    metric_names = ['gp_r2', 'ax_cv_r2', 'rank_tau', 'loo_nll', 'gp_interval_score', 'ax_cv_interval_score', 'importance_std']
+    metric_data = [all_gp_r2, all_ax_cv_r2, all_rank_tau, all_loo_nll, all_gp_interval, all_ax_cv_interval, all_importance_std]
+    
+    for i, (metric_name, data) in enumerate(zip(metric_names, metric_data)):
+        if data and len(data) > 0:  # Check if data exists and is not empty
+            mean_metric = np.nanmean(data, axis=0)
+            valid_indices = ~np.isnan(mean_metric)
+            if np.any(valid_indices):
+                # Scale metrics to [0, 1] for better visualization on same axis
+                valid_values = mean_metric[valid_indices]
+                if len(valid_values) > 1:
+                    metric_min = np.min(valid_values)
+                    metric_max = np.max(valid_values)
+                    if metric_max > metric_min:
+                        scaled_values = (valid_values - metric_min) / (metric_max - metric_min)
+                    else:
+                        scaled_values = np.ones_like(valid_values) * 0.5
+                else:
+                    scaled_values = np.array([0.5])
+                
+                trial_subset = np.array(trial_range)[valid_indices]
+                line = ax2.plot(trial_subset, scaled_values, 
+                               color=colors[i], marker=markers[i], linestyle=linestyles[i],
+                               label=f'{metric_name.replace("_", " ").title()}', 
+                               linewidth=2, markersize=4, alpha=0.8)
+                plotted_lines.extend(line)
+    
+    # Add legend
+    if plotted_lines:
+        ax2.legend(loc='upper right', bbox_to_anchor=(1.0, 1.0), fontsize=9)
+    
+    ax2.set_ylim(0, 1)
+    ax2.set_ylabel("Normalized Metric Values")
     
     plt.tight_layout()
     
