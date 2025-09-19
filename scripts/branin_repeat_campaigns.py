@@ -357,6 +357,8 @@ def create_plotly_campaign_plot(campaign_results, campaign_dir):
 
 def create_campaign_gif(campaign_results, campaign_dir):
     """Create GIF showing optimization progress over time."""
+    import math
+    
     campaign_id = campaign_results['campaign_id']
     trials = campaign_results['trials']
     best_values = campaign_results['best_values']
@@ -378,6 +380,9 @@ def create_campaign_gif(campaign_results, campaign_dir):
     # Pre-calculate consistent colorbar limits
     obj_min = min(all_obj_vals)
     obj_max = max(all_obj_vals)
+    
+    # Pre-calculate consistent tick marks for better scale consistency
+    from matplotlib.ticker import MaxNLocator
     
     # Create frames for each trial
     for frame_idx in range(5, len(trials), 2):  # Start from trial 5, every 2nd frame
@@ -403,8 +408,12 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax1.set_xlabel('x1')
         ax1.set_ylabel('x2')
         ax1.set_title(f'Campaign {campaign_id}: Parameter Space (Trial {frame_idx})')
-        ax1.legend()
+        ax1.legend(loc='upper left')  # Fixed legend position
         ax1.grid(True, alpha=0.3)
+        
+        # Set consistent tick marks for x1 and x2 axes
+        ax1.xaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax1.yaxis.set_major_locator(MaxNLocator(nbins=6))
         
         # Add colorbar with consistent range
         cbar = plt.colorbar(scatter, ax=ax1)
@@ -420,9 +429,13 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax2.set_ylabel(f'{obj1_name}')
         ax2.set_title(f'Campaign {campaign_id}: Progress (Trial {frame_idx})')
         ax2.grid(True, alpha=0.3)
-        ax2.legend()
+        ax2.legend(loc='upper left')  # Fixed legend position
         ax2.set_xlim(0, len(trials))
         ax2.set_ylim(y_min_plot, y_max_plot)  # Fixed y-axis limits
+        
+        # Set consistent tick marks for progress plot
+        ax2.xaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
         
         plt.tight_layout()
         
@@ -433,16 +446,23 @@ def create_campaign_gif(campaign_results, campaign_dir):
         
         frames.append(str(frame_path))
     
-    # Create GIF
+    # Create GIF with improved timing approach
     gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
     
     if frames:
-        # Use much slower duration (3.0 seconds per frame) and enable looping
-        # Also try with fps parameter which might be more reliable
-        with imageio.get_writer(str(gif_path), mode='I', duration=3.0, loop=0) as writer:
+        frame_duration = 1.0  # 1 second per frame
+        hold_last_sec = 3.0   # Hold last frame for 3 seconds
+        loop = 0              # Infinite loop
+        
+        with imageio.get_writer(str(gif_path), mode='I', duration=frame_duration, loop=loop) as writer:
             for frame_path in frames:
-                image = imageio.imread(frame_path)
-                writer.append_data(image)
+                writer.append_data(imageio.imread(frame_path))
+            # Hold last frame for readability
+            if hold_last_sec > 0:
+                last = imageio.imread(frames[-1])
+                n_hold = max(1, int(math.ceil(hold_last_sec / frame_duration)))
+                for _ in range(n_hold):
+                    writer.append_data(last)
         
         # Clean up temporary frames
         for frame_path in frames:
