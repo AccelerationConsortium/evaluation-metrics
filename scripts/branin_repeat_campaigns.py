@@ -367,6 +367,18 @@ def create_campaign_gif(campaign_results, campaign_dir):
     temp_dir = campaign_dir / 'temp_frames'
     temp_dir.mkdir(exist_ok=True)
     
+    # Pre-calculate consistent axis limits for the progress plot
+    all_obj_vals = objective_values
+    y_min = min(all_obj_vals)
+    y_max = max(all_obj_vals)
+    y_margin = (y_max - y_min) * 0.1  # 10% margin
+    y_min_plot = y_min - y_margin
+    y_max_plot = y_max + y_margin
+    
+    # Pre-calculate consistent colorbar limits
+    obj_min = min(all_obj_vals)
+    obj_max = max(all_obj_vals)
+    
     # Create frames for each trial
     for frame_idx in range(5, len(trials), 2):  # Start from trial 5, every 2nd frame
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -376,9 +388,10 @@ def create_campaign_gif(campaign_results, campaign_dir):
         x2_vals = [p['x2'] for p in parameters[:frame_idx+1]]
         obj_vals = objective_values[:frame_idx+1]
         
-        # Create a scatter plot colored by objective value
+        # Create a scatter plot colored by objective value with consistent colorbar
         scatter = ax1.scatter(x1_vals, x2_vals, c=obj_vals, cmap='viridis_r', 
-                             s=50, alpha=0.8, edgecolors='black', linewidth=0.5)
+                             s=50, alpha=0.8, edgecolors='black', linewidth=0.5,
+                             vmin=obj_min, vmax=obj_max)  # Fixed colorbar range
         
         # Highlight the best point
         best_idx = np.argmin(obj_vals)
@@ -393,11 +406,11 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # Add colorbar
+        # Add colorbar with consistent range
         cbar = plt.colorbar(scatter, ax=ax1)
         cbar.set_label(f'{obj1_name} Value')
         
-        # Right subplot: Optimization progress
+        # Right subplot: Optimization progress with fixed y-axis
         ax2.plot(trials[:frame_idx+1], best_values[:frame_idx+1], 'r-', 
                 linewidth=2, marker='o', markersize=4, label=f'Best {obj1_name}')
         ax2.scatter(trials[:frame_idx+1], objective_values[:frame_idx+1], 
@@ -409,6 +422,7 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax2.grid(True, alpha=0.3)
         ax2.legend()
         ax2.set_xlim(0, len(trials))
+        ax2.set_ylim(y_min_plot, y_max_plot)  # Fixed y-axis limits
         
         plt.tight_layout()
         
@@ -423,8 +437,9 @@ def create_campaign_gif(campaign_results, campaign_dir):
     gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
     
     if frames:
-        # Use slower duration (1.5 seconds per frame) and enable looping
-        with imageio.get_writer(str(gif_path), mode='I', duration=1.5, loop=0) as writer:
+        # Use much slower duration (3.0 seconds per frame) and enable looping
+        # Also try with fps parameter which might be more reliable
+        with imageio.get_writer(str(gif_path), mode='I', duration=3.0, loop=0) as writer:
             for frame_path in frames:
                 image = imageio.imread(frame_path)
                 writer.append_data(image)
