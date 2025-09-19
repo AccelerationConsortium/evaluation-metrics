@@ -21,7 +21,7 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import sys
 import os
-import imageio
+import imageio.v2 as imageio
 
 # Add the bo_benchmarks directory to Python path
 bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
@@ -423,7 +423,8 @@ def create_campaign_gif(campaign_results, campaign_dir):
     gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
     
     if frames:
-        with imageio.get_writer(str(gif_path), mode='I', duration=0.8) as writer:
+        # Use slower duration (1.5 seconds per frame) and enable looping
+        with imageio.get_writer(str(gif_path), mode='I', duration=1.5, loop=0) as writer:
             for frame_path in frames:
                 image = imageio.imread(frame_path)
                 writer.append_data(image)
