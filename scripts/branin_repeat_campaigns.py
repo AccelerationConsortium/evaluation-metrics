@@ -455,10 +455,10 @@ def create_campaign_gif(campaign_results, campaign_dir):
         # Load frames as PIL Images (use palette mode for GIF)
         pil_frames = [Image.open(fp).convert("P", palette=Image.ADAPTIVE) for fp in frames]
 
-        # 2000 ms per frame, hold last for 5000 ms
+        # 2000 ms per frame, hold last for 2500 ms
         durations_ms = [2000] * len(pil_frames)
         if durations_ms:
-            durations_ms[-1] = 5000
+            durations_ms[-1] = 2500
 
         # Save with explicit per-frame delays; disposal=2 avoids artifacts; optimize=False preserves timing
         pil_frames[0].save(
