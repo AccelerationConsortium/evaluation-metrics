@@ -446,23 +446,28 @@ def create_campaign_gif(campaign_results, campaign_dir):
         
         frames.append(str(frame_path))
     
-    # Create GIF with improved timing approach
+    # Create GIF with improved timing approach using frame duplication
     gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
     
     if frames:
-        frame_duration = 1.0  # 1 second per frame
-        hold_last_sec = 3.0   # Hold last frame for 3 seconds
-        loop = 0              # Infinite loop
+        frame_duration_sec = 2.0  # Target 2 seconds per frame
+        hold_last_sec = 4.0       # Hold last frame for 4 seconds
+        base_tick_sec = 0.1       # Conservative base tick duration
         
-        with imageio.get_writer(str(gif_path), mode='I', duration=frame_duration, loop=loop) as writer:
+        # Duplicate frames to achieve desired timing with a conservative base tick
+        per_frame_dups = max(1, int(round(frame_duration_sec / base_tick_sec)))
+        last_hold_dups = max(1, int(round(hold_last_sec / base_tick_sec)))
+
+        with imageio.get_writer(str(gif_path), mode='I', duration=base_tick_sec, loop=0) as writer:
             for frame_path in frames:
-                writer.append_data(imageio.imread(frame_path))
-            # Hold last frame for readability
-            if hold_last_sec > 0:
-                last = imageio.imread(frames[-1])
-                n_hold = max(1, int(math.ceil(hold_last_sec / frame_duration)))
-                for _ in range(n_hold):
-                    writer.append_data(last)
+                img = imageio.imread(frame_path)
+                for _ in range(per_frame_dups):
+                    writer.append_data(img)
+
+            # Hold on the last frame
+            last = imageio.imread(frames[-1])
+            for _ in range(last_hold_dups):
+                writer.append_data(last)
         
         # Clean up temporary frames
         for frame_path in frames:
