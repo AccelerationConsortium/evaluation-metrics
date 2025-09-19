@@ -385,7 +385,7 @@ def create_campaign_gif(campaign_results, campaign_dir):
     from matplotlib.ticker import MaxNLocator
     
     # Create frames for each trial
-    for frame_idx in range(5, len(trials), 2):  # Start from trial 5, every 2nd frame
+    for frame_idx in range(1, len(trials), 2):  # Start from trial 1, every 2nd frame
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
         # Left subplot: Parameter space visualization
@@ -446,32 +446,34 @@ def create_campaign_gif(campaign_results, campaign_dir):
         
         frames.append(str(frame_path))
     
-    # Create GIF with improved timing approach using frame duplication
+    # Create GIF using PIL with explicit per-frame delays
     gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
     
     if frames:
-        frame_duration_sec = 2.0  # Target 2 seconds per frame
-        hold_last_sec = 4.0       # Hold last frame for 4 seconds
-        base_tick_sec = 0.1       # Conservative base tick duration
+        from PIL import Image
         
-        # Duplicate frames to achieve desired timing with a conservative base tick
-        per_frame_dups = max(1, int(round(frame_duration_sec / base_tick_sec)))
-        last_hold_dups = max(1, int(round(hold_last_sec / base_tick_sec)))
+        # Load frames as PIL Images (use palette mode for GIF)
+        pil_frames = [Image.open(fp).convert("P", palette=Image.ADAPTIVE) for fp in frames]
 
-        with imageio.get_writer(str(gif_path), mode='I', duration=base_tick_sec, loop=0) as writer:
-            for frame_path in frames:
-                img = imageio.imread(frame_path)
-                for _ in range(per_frame_dups):
-                    writer.append_data(img)
+        # 2000 ms per frame, hold last for 5000 ms
+        durations_ms = [2000] * len(pil_frames)
+        if durations_ms:
+            durations_ms[-1] = 5000
 
-            # Hold on the last frame
-            last = imageio.imread(frames[-1])
-            for _ in range(last_hold_dups):
-                writer.append_data(last)
-        
-        # Clean up temporary frames
-        for frame_path in frames:
-            os.remove(frame_path)
+        # Save with explicit per-frame delays; disposal=2 avoids artifacts; optimize=False preserves timing
+        pil_frames[0].save(
+            str(gif_path),
+            save_all=True,
+            append_images=pil_frames[1:],
+            duration=durations_ms,   # list of per-frame durations in ms
+            loop=0,                  # infinite loop
+            disposal=2,              # restore to background before next frame
+            optimize=False           # don't re-optimize away delays
+        )
+
+        # Clean up the temporary PNGs
+        for fp in frames:
+            os.remove(fp)
         temp_dir.rmdir()
     
     return gif_path
