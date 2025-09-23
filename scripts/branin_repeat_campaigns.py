@@ -402,10 +402,10 @@ def create_individual_campaign_plot(campaign_results, output_dir):
         ax2_cum.set_ylabel("Cumulative Improvement", color='orange')
         ax2_cum.tick_params(axis='y', labelcolor='orange')
         
-        # Combine legends
+        # Combine legends and place them to avoid overlap
         lines1, labels1 = ax2.get_legend_handles_labels()
         lines2, labels2 = ax2_cum.get_legend_handles_labels()
-        ax2.legend(lines1 + lines2, labels1 + labels2, loc='best')
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
         
     else:
         ax2.text(0.5, 0.5, 'Not enough data\nfor efficiency analysis', 
@@ -618,10 +618,10 @@ def create_campaign_gif(campaign_results, campaign_dir):
         # Load frames as PIL Images (use palette mode for GIF)
         pil_frames = [Image.open(fp).convert("P", palette=Image.ADAPTIVE) for fp in frames]
 
-        # 2000 ms per frame, hold last for 2500 ms
+        # 2000 ms per frame, hold last for 1000 ms  
         durations_ms = [2000] * len(pil_frames)
         if durations_ms:
-            durations_ms[-1] = 2500
+            durations_ms[-1] = 1000
 
         # Save with explicit per-frame delays; disposal=2 avoids artifacts; optimize=False preserves timing
         pil_frames[0].save(
