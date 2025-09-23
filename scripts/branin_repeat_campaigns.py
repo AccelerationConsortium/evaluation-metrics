@@ -13,8 +13,7 @@ from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationSte
 from ax.modelbridge.registry import Models
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+# Removed plotly and imageio imports (heavy visualization removed)
 from pathlib import Path
 import torch
 import json
@@ -22,7 +21,6 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import sys
 import os
-import imageio.v2 as imageio
 
 # Add the bo_benchmarks directory to Python path
 bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
@@ -238,10 +236,25 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
 
 def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
     """Run a single optimization campaign with metrics collection and return results."""
-    print(f"Starting campaign {campaign_id}...")
+    print(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials})...")
     
-    # Create main ax client for optimization
-    ax_client = AxClient(verbose_logging=False)
+    # Create main ax client for optimization with proper generation strategy
+    # Use Sobol for initialization, then GPEI
+    gs = GenerationStrategy(
+        steps=[
+            GenerationStep(
+                model=Models.SOBOL, 
+                num_trials=num_init_trials,
+                min_trials_observed=num_init_trials,
+            ),
+            GenerationStep(
+                model=Models.BOTORCH_MODULAR,
+                num_trials=-1,  # Continue indefinitely with GPEI
+            ),
+        ]
+    )
+    
+    ax_client = AxClient(generation_strategy=gs, verbose_logging=False)
     ax_client.create_experiment(
         parameters=[
             {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
@@ -274,6 +287,7 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
     # Storage for results
     campaign_results = {
         'campaign_id': campaign_id,
+        'num_init_trials': int(num_init_trials),  # Add initialization count for analysis
         'trials': [],
         'best_values': [],
         'objective_values': [],
@@ -353,519 +367,221 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
     return campaign_results
 
 
-def create_individual_campaign_plot(campaign_results, output_dir):
-    """Create individual campaign plot similar to branin_campaign_demonstration_results.png."""
-    campaign_id = campaign_results['campaign_id']
-    trials = campaign_results['trials']
-    best_values = campaign_results['best_values']
-    objective_values = campaign_results['objective_values']
-    
-    # Create the plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-    
-    # Top subplot: Optimization progress showing both raw and best-so-far
-    # Raw objective values
-    ax1.scatter(trials, objective_values, alpha=0.6, s=30, color='lightblue', label=f'Raw {obj1_name}', zorder=1)
-    # Best-so-far trace
-    ax1.plot(trials, best_values, 'r-', linewidth=2, label=f'Best {obj1_name}', marker='o', markersize=4, zorder=2)
-    ax1.set_xlabel("Trial Number")
-    ax1.set_ylabel(f"{obj1_name}")
-    ax1.set_title(f"Campaign {campaign_id}: Optimization Progress")
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
-    
-    # Bottom subplot: Convergence metrics (simplified)
-    # Show optimization efficiency metrics
-    if len(best_values) > 1:
-        # Calculate improvement per trial
-        improvements = []
-        for i in range(1, len(best_values)):
-            improvement = best_values[i-1] - best_values[i]  # Positive means improvement
-            improvements.append(improvement)
-        
-        improvement_trials = trials[1:]
-        
-        ax2.bar(improvement_trials, improvements, alpha=0.7, color='green', 
-                label='Improvement per Trial', width=0.8)
-        ax2.axhline(y=0, color='black', linestyle='-', alpha=0.5)
-        ax2.set_xlabel("Trial Number")
-        ax2.set_ylabel("Improvement")
-        ax2.set_title(f"Campaign {campaign_id}: Optimization Efficiency")
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-        
-        # Add cumulative improvement on second y-axis
-        ax2_cum = ax2.twinx()
-        cumulative_improvement = np.cumsum(improvements)
-        ax2_cum.plot(improvement_trials, cumulative_improvement, 'orange', 
-                     label='Cumulative Improvement', marker='s', linewidth=2)
-        ax2_cum.set_ylabel("Cumulative Improvement", color='orange')
-        ax2_cum.tick_params(axis='y', labelcolor='orange')
-        
-        # Combine legends and place them to avoid overlap
-        lines1, labels1 = ax2.get_legend_handles_labels()
-        lines2, labels2 = ax2_cum.get_legend_handles_labels()
-        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
-        
-    else:
-        ax2.text(0.5, 0.5, 'Not enough data\nfor efficiency analysis', 
-                ha='center', va='center', transform=ax2.transAxes)
-        ax2.set_title(f"Campaign {campaign_id}: Optimization Efficiency")
-    
-    plt.tight_layout()
-    
-    # Save plot
-    plot_path = output_dir / f'branin_campaign_{campaign_id}_results.png'
-    plt.savefig(str(plot_path), dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    return plot_path
+# Removed heavy visualization functions for exhaustive evaluation
+# def create_individual_campaign_plot(...)
+# def create_plotly_campaign_plot(...)  
+# def create_campaign_gif(...)
+# def create_composite_plot(...)
 
-
-def create_plotly_campaign_plot(campaign_results, campaign_dir):
-    """Create interactive Plotly version of the campaign plot."""
-    campaign_id = campaign_results['campaign_id']
-    trials = campaign_results['trials']
-    best_values = campaign_results['best_values']
-    objective_values = campaign_results['objective_values']
-    
-    # Create subplots
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=(f'Campaign {campaign_id}: Optimization Progress', 
-                       f'Campaign {campaign_id}: Optimization Efficiency'),
-        vertical_spacing=0.1
-    )
-    
-    # Top subplot: Optimization progress
-    # Raw objective values
-    fig.add_trace(
-        go.Scatter(
-            x=trials, y=objective_values,
-            mode='markers',
-            name=f'Raw {obj1_name}',
-            marker=dict(color='lightblue', size=8, opacity=0.6),
-            showlegend=True
-        ),
-        row=1, col=1
-    )
-    
-    # Best-so-far trace
-    fig.add_trace(
-        go.Scatter(
-            x=trials, y=best_values,
-            mode='lines+markers',
-            name=f'Best {obj1_name}',
-            line=dict(color='red', width=2),
-            marker=dict(size=6),
-            showlegend=True
-        ),
-        row=1, col=1
-    )
-    
-    # Bottom subplot: Efficiency metrics
-    if len(best_values) > 1:
-        improvements = []
-        for i in range(1, len(best_values)):
-            improvement = best_values[i-1] - best_values[i]
-            improvements.append(improvement)
-        
-        improvement_trials = trials[1:]
-        cumulative_improvement = np.cumsum(improvements)
-        
-        # Improvement bars
-        fig.add_trace(
-            go.Bar(
-                x=improvement_trials, y=improvements,
-                name='Improvement per Trial',
-                marker=dict(color='green', opacity=0.7),
-                showlegend=True
-            ),
-            row=2, col=1
-        )
-        
-        # Cumulative improvement line
-        fig.add_trace(
-            go.Scatter(
-                x=improvement_trials, y=cumulative_improvement,
-                mode='lines+markers',
-                name='Cumulative Improvement',
-                line=dict(color='orange', width=2),
-                marker=dict(size=6),
-                yaxis='y2',
-                showlegend=True
-            ),
-            row=2, col=1
-        )
-    
-    # Update layout
-    fig.update_layout(
-        title=f'Campaign {campaign_id}: Branin Optimization Results',
-        height=800,
-        showlegend=True
-    )
-    
-    # Update axes
-    fig.update_xaxes(title_text="Trial Number", row=1, col=1)
-    fig.update_yaxes(title_text=f"{obj1_name}", row=1, col=1)
-    fig.update_xaxes(title_text="Trial Number", row=2, col=1)
-    fig.update_yaxes(title_text="Improvement", row=2, col=1)
-    
-    # Save interactive HTML
-    html_path = campaign_dir / f'branin_campaign_{campaign_id}_results.html'
-    fig.write_html(str(html_path))
-    
-    return html_path
-
-
-def create_campaign_gif(campaign_results, campaign_dir):
-    """Create GIF showing optimization progress over time."""
-    import math
-    
-    campaign_id = campaign_results['campaign_id']
-    trials = campaign_results['trials']
-    best_values = campaign_results['best_values']
-    objective_values = campaign_results['objective_values']
-    parameters = campaign_results['parameters']
-    
-    frames = []
-    temp_dir = campaign_dir / 'temp_frames'
-    temp_dir.mkdir(exist_ok=True)
-    
-    # Pre-calculate consistent axis limits for the progress plot
-    all_obj_vals = objective_values
-    y_min = min(all_obj_vals)
-    y_max = max(all_obj_vals)
-    y_margin = (y_max - y_min) * 0.1  # 10% margin
-    y_min_plot = y_min - y_margin
-    y_max_plot = y_max + y_margin
-    
-    # Pre-calculate consistent colorbar limits
-    obj_min = min(all_obj_vals)
-    obj_max = max(all_obj_vals)
-    
-    # Pre-calculate consistent tick marks for better scale consistency
-    from matplotlib.ticker import MaxNLocator
-    
-    # Create frames for each trial
-    for frame_idx in range(1, len(trials), 2):  # Start from trial 1, every 2nd frame
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        
-        # Left subplot: Parameter space visualization
-        x1_vals = [p['x1'] for p in parameters[:frame_idx+1]]
-        x2_vals = [p['x2'] for p in parameters[:frame_idx+1]]
-        obj_vals = objective_values[:frame_idx+1]
-        
-        # Create a scatter plot colored by objective value with consistent colorbar
-        scatter = ax1.scatter(x1_vals, x2_vals, c=obj_vals, cmap='viridis_r', 
-                             s=50, alpha=0.8, edgecolors='black', linewidth=0.5,
-                             vmin=obj_min, vmax=obj_max)  # Fixed colorbar range
-        
-        # Highlight the best point
-        best_idx = np.argmin(obj_vals)
-        ax1.scatter(x1_vals[best_idx], x2_vals[best_idx], c='red', s=150, 
-                   marker='*', edgecolors='black', linewidth=1, label='Best Point')
-        
-        ax1.set_xlim(-5, 10)
-        ax1.set_ylim(0, 10)
-        ax1.set_xlabel('x1')
-        ax1.set_ylabel('x2')
-        ax1.set_title(f'Campaign {campaign_id}: Parameter Space (Trial {frame_idx})')
-        ax1.legend(loc='upper left')  # Fixed legend position
-        ax1.grid(True, alpha=0.3)
-        
-        # Set consistent tick marks for x1 and x2 axes
-        ax1.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax1.yaxis.set_major_locator(MaxNLocator(nbins=6))
-        
-        # Add colorbar with consistent range
-        cbar = plt.colorbar(scatter, ax=ax1)
-        cbar.set_label(f'{obj1_name} Value')
-        
-        # Right subplot: Optimization progress with fixed y-axis
-        ax2.plot(trials[:frame_idx+1], best_values[:frame_idx+1], 'r-', 
-                linewidth=2, marker='o', markersize=4, label=f'Best {obj1_name}')
-        ax2.scatter(trials[:frame_idx+1], objective_values[:frame_idx+1], 
-                   alpha=0.6, s=30, color='lightblue', label=f'Raw {obj1_name}')
-        
-        ax2.set_xlabel('Trial Number')
-        ax2.set_ylabel(f'{obj1_name}')
-        ax2.set_title(f'Campaign {campaign_id}: Progress (Trial {frame_idx})')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend(loc='upper left')  # Fixed legend position
-        ax2.set_xlim(0, len(trials))
-        ax2.set_ylim(y_min_plot, y_max_plot)  # Fixed y-axis limits
-        
-        # Set consistent tick marks for progress plot
-        ax2.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
-        
-        plt.tight_layout()
-        
-        # Save frame
-        frame_path = temp_dir / f'frame_{frame_idx:03d}.png'
-        plt.savefig(str(frame_path), dpi=100, bbox_inches='tight')
-        plt.close()
-        
-        frames.append(str(frame_path))
-    
-    # Create GIF using PIL with explicit per-frame delays
-    gif_path = campaign_dir / f'branin_campaign_{campaign_id}_evolution.gif'
-    
-    if frames:
-        from PIL import Image
-        
-        # Load frames as PIL Images (use palette mode for GIF)
-        pil_frames = [Image.open(fp).convert("P", palette=Image.ADAPTIVE) for fp in frames]
-
-        # 2000 ms per frame, hold last for 1000 ms  
-        durations_ms = [2000] * len(pil_frames)
-        if durations_ms:
-            durations_ms[-1] = 1000
-
-        # Save with explicit per-frame delays; disposal=2 avoids artifacts; optimize=False preserves timing
-        pil_frames[0].save(
-            str(gif_path),
-            save_all=True,
-            append_images=pil_frames[1:],
-            duration=durations_ms,   # list of per-frame durations in ms
-            loop=0,                  # infinite loop
-            disposal=2,              # restore to background before next frame
-            optimize=False           # don't re-optimize away delays
-        )
-
-        # Clean up the temporary PNGs
-        for fp in frames:
-            os.remove(fp)
-        temp_dir.rmdir()
-    
-    return gif_path
-
-
-def create_composite_plot(all_campaigns, output_dir):
-    """Create composite plot with modified requirements."""
-    
-    # Extract data from all campaigns
-    max_trials = max(len(campaign['best_values']) for campaign in all_campaigns)
-    trial_range = range(max_trials)
-    
-    # Collect best values for each trial across campaigns
-    best_values_matrix = []
-    for campaign in all_campaigns:
-        best_vals = campaign['best_values']
-        # Pad shorter campaigns with their final value
-        if len(best_vals) < max_trials:
-            best_vals = best_vals + [best_vals[-1]] * (max_trials - len(best_vals))
-        best_values_matrix.append(best_vals)
-    
-    best_values_matrix = np.array(best_values_matrix)
-    
-    # Calculate mean and std for best-so-far trace
-    mean_best = np.mean(best_values_matrix, axis=0)
-    std_best = np.std(best_values_matrix, axis=0)
-    
-    # Extract and average evaluation metrics across campaigns
-    all_gp_r2 = []
-    all_ax_cv_r2 = []
-    all_rank_tau = []
-    all_loo_nll = []
-    all_gp_interval = []
-    all_ax_cv_interval = []
-    all_importance_std = []
-    
-    for campaign in all_campaigns:
-        metrics = campaign.get('metrics', {})
-        
-        # Pad metrics to max_trials length
-        for metric_name in ['gp_r2', 'ax_cv_r2', 'rank_tau', 'loo_nll', 'gp_interval_score', 'ax_cv_interval_score', 'importance_std']:
-            if metric_name in metrics:
-                metric_vals = metrics[metric_name]
-                if len(metric_vals) < max_trials:
-                    # Pad with NaN for missing values
-                    metric_vals = metric_vals + [np.nan] * (max_trials - len(metric_vals))
-                
-                if metric_name == 'gp_r2':
-                    all_gp_r2.append(metric_vals)
-                elif metric_name == 'ax_cv_r2':
-                    all_ax_cv_r2.append(metric_vals)
-                elif metric_name == 'rank_tau':
-                    all_rank_tau.append(metric_vals)
-                elif metric_name == 'loo_nll':
-                    all_loo_nll.append(metric_vals)
-                elif metric_name == 'gp_interval_score':
-                    all_gp_interval.append(metric_vals)
-                elif metric_name == 'ax_cv_interval_score':
-                    all_ax_cv_interval.append(metric_vals)
-                elif metric_name == 'importance_std':
-                    all_importance_std.append(metric_vals)
-    
-    # Create composite plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-    
-    # Top subplot: Optimization progress (mean + uncertainty bands only)
-    ax1.plot(trial_range, mean_best, 'r-', linewidth=3, label=f'Mean Best {obj1_name}')
-    ax1.fill_between(trial_range, 
-                     mean_best - std_best, 
-                     mean_best + std_best, 
-                     alpha=0.3, color='red', label='±1 Std Dev')
-    ax1.set_xlabel("Trial Number")
-    ax1.set_ylabel(f"Best {obj1_name}")
-    ax1.set_title("Branin Optimization: Average Progress Across 10 Repeat Campaigns")
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
-    
-    # Bottom subplot: Average evaluation metrics (no uncertainty bands)
-    ax2.set_xlabel("Trial Number")
-    ax2.set_ylabel("Metric Values")
-    ax2.set_title("Average Evaluation Metrics Across 10 Repeat Campaigns")
-    ax2.grid(True, alpha=0.3)
-    
-    # Plot metrics with different colors and markers - single axis approach for better visibility
-    colors = ['red', 'orange', 'green', 'blue', 'purple', 'magenta', 'brown']
-    markers = ['o', 'd', 's', '^', 'v', 'h', 'p']
-    linestyles = ['-', '--', '-.', ':', '-', '--', '-.']
-    
-    plotted_lines = []
-    
-    # Plot averaged metrics
-    metric_names = ['gp_r2', 'ax_cv_r2', 'rank_tau', 'loo_nll', 'gp_interval_score', 'ax_cv_interval_score', 'importance_std']
-    metric_data = [all_gp_r2, all_ax_cv_r2, all_rank_tau, all_loo_nll, all_gp_interval, all_ax_cv_interval, all_importance_std]
-    
-    for i, (metric_name, data) in enumerate(zip(metric_names, metric_data)):
-        if data and len(data) > 0:  # Check if data exists and is not empty
-            mean_metric = np.nanmean(data, axis=0)
-            valid_indices = ~np.isnan(mean_metric)
-            if np.any(valid_indices):
-                # Scale metrics to [0, 1] for better visualization on same axis
-                valid_values = mean_metric[valid_indices]
-                if len(valid_values) > 1:
-                    metric_min = np.min(valid_values)
-                    metric_max = np.max(valid_values)
-                    if metric_max > metric_min:
-                        scaled_values = (valid_values - metric_min) / (metric_max - metric_min)
-                    else:
-                        scaled_values = np.ones_like(valid_values) * 0.5
-                else:
-                    scaled_values = np.array([0.5])
-                
-                trial_subset = np.array(trial_range)[valid_indices]
-                line = ax2.plot(trial_subset, scaled_values, 
-                               color=colors[i], marker=markers[i], linestyle=linestyles[i],
-                               label=f'{metric_name.replace("_", " ").title()}', 
-                               linewidth=2, markersize=4, alpha=0.8)
-                plotted_lines.extend(line)
-    
-    # Add legend
-    if plotted_lines:
-        ax2.legend(loc='upper right', bbox_to_anchor=(1.0, 1.0), fontsize=9)
-    
-    ax2.set_ylim(0, 1)
-    ax2.set_ylabel("Normalized Metric Values")
-    
-    plt.tight_layout()
-    
-    # Save composite plot
-    composite_path = output_dir / 'branin_repeat_campaigns_composite_results.png'
-    plt.savefig(str(composite_path), dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    return composite_path
+# These functions have been replaced with lightweight sanity_check_plots
 
 
 def main():
     """Main execution function."""
-    print("=== Running 10 Repeat Branin Campaigns ===")
-    print("This will run 10 independent campaigns to determine optimal initialization points")
+    print("=== Exhaustive Branin Evaluation: Init Counts 2-30 ===")
+    print("This will run campaigns with different initialization counts and evaluate at all budget levels")
     print()
     
     # Setup output directory
-    output_dir = Path(__file__).parent / "branin_repeat_campaign_results"
+    output_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results"
     output_dir.mkdir(exist_ok=True)
     
-    # Create subdirectories for each campaign
-    for i in range(1, 11):
-        campaign_dir = output_dir / f"cv_plots_{i}"
-        campaign_dir.mkdir(exist_ok=True)
+    # Parameters for exhaustive evaluation
+    init_counts = range(2, 31)  # 2 to 30 initialization points
+    num_repeats = 10  # Number of repeat campaigns per init count
+    max_trials = 30  # Run all campaigns to 30 trials
     
-    # Run campaigns sequentially (parallel execution can be memory intensive)
-    all_campaigns = []
+    # Storage for all results
+    all_results = {}  # init_count -> list of campaign results
     
-    for campaign_id in range(1, 11):
-        try:
-            campaign_results = run_single_campaign(campaign_id, num_trials=30)  # Reduced for faster execution
-            all_campaigns.append(campaign_results)
-            
-            # Create individual campaign plot
-            individual_plot_path = create_individual_campaign_plot(campaign_results, output_dir)
-            print(f"  Saved individual plot: {individual_plot_path}")
-            
-            # Create individual campaign directory and additional outputs
-            campaign_dir = output_dir / f"cv_plots_{campaign_id}"
-            
-            # Create Plotly HTML version
+    # Run campaigns for each initialization count
+    for init_count in init_counts:
+        print(f"\n=== Testing {init_count} initialization points ===")
+        
+        # Create subdirectory for this init count
+        init_dir = output_dir / f"init_{init_count}"
+        init_dir.mkdir(exist_ok=True)
+        
+        init_campaigns = []
+        
+        for repeat_id in range(1, num_repeats + 1):
             try:
-                html_path = create_plotly_campaign_plot(campaign_results, campaign_dir)
-                print(f"  Saved HTML plot: {html_path}")
-            except Exception as e:
-                print(f"  Warning: Could not create HTML plot: {e}")
+                campaign_id = f"{init_count}_{repeat_id}"
+                campaign_results = run_single_campaign(
+                    campaign_id, 
+                    num_trials=max_trials, 
+                    num_init_trials=init_count
+                )
+                init_campaigns.append(campaign_results)
             
-            # Create campaign GIF
-            try:
-                gif_path = create_campaign_gif(campaign_results, campaign_dir)
-                print(f"  Saved GIF: {gif_path}")
-            except Exception as e:
-                print(f"  Warning: Could not create GIF: {e}")
-            
-            # Save campaign data as JSON
-            campaign_data_path = campaign_dir / f"branin_campaign_{campaign_id}_data.json"
-            with open(campaign_data_path, 'w') as f:
-                # Convert numpy types to standard Python types for JSON serialization
-                json_safe_results = {}
-                for key, value in campaign_results.items():
-                    if isinstance(value, list):
-                        json_safe_results[key] = [
-                            float(v) if isinstance(v, (np.floating, np.integer)) else v
-                            for v in value
-                        ]
-                    else:
-                        json_safe_results[key] = value
+                print(f"  Campaign {campaign_id}: Final best = {campaign_results['best_values'][-1]:.6f}")
                 
-                json.dump(json_safe_results, f, indent=2)
-            print(f"  Saved campaign data: {campaign_data_path}")
+            except Exception as e:
+                print(f"Error in campaign {campaign_id}: {e}")
+                continue
+        
+        # Store results for this init count
+        all_results[init_count] = init_campaigns
+        print(f"Completed {len(init_campaigns)}/{num_repeats} campaigns for init_count={init_count}")
+    
+    # Generate truncated budget analysis
+    print("\n=== Analyzing results across all budgets ===")
+    budget_analysis = analyze_budget_truncation(all_results, max_trials)
+    
+    # Save comprehensive results
+    results_path = output_dir / "exhaustive_evaluation_results.json"
+    with open(results_path, 'w') as f:
+        json.dump({
+            'budget_analysis': budget_analysis,
+            'parameters': {
+                'init_counts': list(init_counts),
+                'num_repeats': num_repeats,
+                'max_trials': max_trials
+            }
+        }, f, indent=2)
+    print(f"Saved comprehensive results: {results_path}")
+    
+    # Create sanity check plots
+    create_sanity_check_plots(budget_analysis, output_dir, all_results)
+    
+    print(f"\n=== Evaluation Complete ===")
+    print(f"Tested init counts: {min(init_counts)}-{max(init_counts)}")
+    print(f"Results saved in: {output_dir}")
+
+
+def analyze_budget_truncation(all_results, max_trials):
+    """Analyze performance at all budget levels using truncation."""
+    budget_analysis = {}
+    
+    for budget in range(1, max_trials + 1):
+        budget_analysis[budget] = {}
+        
+        for init_count, campaigns in all_results.items():
+            if not campaigns:
+                continue
+                
+            # Extract performance at this budget level (truncated best_values)
+            budget_performances = []
+            for campaign in campaigns:
+                if len(campaign['best_values']) >= budget:
+                    budget_performances.append(campaign['best_values'][budget - 1])
             
-        except Exception as e:
-            print(f"Error in campaign {campaign_id}: {e}")
+            if budget_performances:
+                budget_analysis[budget][init_count] = {
+                    'mean': float(np.mean(budget_performances)),
+                    'std': float(np.std(budget_performances)),
+                    'min': float(np.min(budget_performances)),
+                    'max': float(np.max(budget_performances)),
+                    'count': len(budget_performances)
+                }
+    
+    return budget_analysis
+
+
+def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
+    """Create simple plots for sanity checking results."""
+    
+    # Plot 1: Final performance (budget=30) vs init count
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Extract data for final budget
+    final_budget = max(budget_analysis.keys())
+    init_counts = []
+    mean_performance = []
+    std_performance = []
+    
+    for init_count in sorted(budget_analysis[final_budget].keys()):
+        data = budget_analysis[final_budget][init_count]
+        init_counts.append(init_count)
+        mean_performance.append(data['mean'])
+        std_performance.append(data['std'])
+    
+    # Left plot: Mean performance with error bars
+    ax1.errorbar(init_counts, mean_performance, yerr=std_performance, 
+                marker='o', capsize=5, capthick=2, linewidth=2)
+    ax1.set_xlabel('Number of Initialization Points')
+    ax1.set_ylabel('Final Best Objective Value')
+    ax1.set_title(f'Final Performance vs Init Count (Budget={final_budget})')
+    ax1.grid(True, alpha=0.3)
+    
+    # Right plot: Performance across different budgets (heatmap-style)
+    budgets = [5, 10, 15, 20, 25, 30]  # Sample of budgets for clarity
+    init_sample = [2, 5, 10, 15, 20, 25, 30]  # Sample of init counts
+    
+    performance_matrix = []
+    for budget in budgets:
+        if budget in budget_analysis:
+            row = []
+            for init_count in init_sample:
+                if init_count in budget_analysis[budget]:
+                    row.append(budget_analysis[budget][init_count]['mean'])
+                else:
+                    row.append(np.nan)
+            performance_matrix.append(row)
+    
+    if performance_matrix:
+        im = ax2.imshow(performance_matrix, cmap='viridis_r', aspect='auto')
+        ax2.set_xlabel('Init Count')
+        ax2.set_ylabel('Budget')
+        ax2.set_title('Mean Performance Across Budgets')
+        ax2.set_xticks(range(len(init_sample)))
+        ax2.set_xticklabels(init_sample)
+        ax2.set_yticks(range(len(budgets)))
+        ax2.set_yticklabels(budgets)
+        plt.colorbar(im, ax=ax2, label='Mean Best Objective')
+    
+    plt.tight_layout()
+    plot_path = output_dir / 'sanity_check_plots.png'
+    plt.savefig(str(plot_path), dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved sanity check plots: {plot_path}")
+    
+    # Plot 2: Simple convergence curves for different init counts
+    if all_results is None:
+        print("Warning: all_results not provided, skipping convergence curves")
+        return
+    
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    
+    # Show convergence for a few representative init counts
+    representative_inits = [2, 5, 10, 15, 20, 30]
+    colors = plt.cm.tab10(np.linspace(0, 1, len(representative_inits)))
+    
+    for i, init_count in enumerate(representative_inits):
+        if init_count not in all_results or not all_results[init_count]:
             continue
+            
+        # Average best_values across repeats for this init count
+        max_len = max(len(campaign['best_values']) for campaign in all_results[init_count])
+        avg_curve = []
+        
+        for trial_idx in range(max_len):
+            trial_values = []
+            for campaign in all_results[init_count]:
+                if len(campaign['best_values']) > trial_idx:
+                    trial_values.append(campaign['best_values'][trial_idx])
+            if trial_values:
+                avg_curve.append(np.mean(trial_values))
+        
+        if avg_curve:
+            ax.plot(range(1, len(avg_curve) + 1), avg_curve, 
+                   color=colors[i], linewidth=2, marker='o', markersize=4,
+                   label=f'Init={init_count}')
     
-    if all_campaigns:
-        # Create composite plot
-        composite_plot_path = create_composite_plot(all_campaigns, output_dir)
-        print(f"\nSaved composite plot: {composite_plot_path}")
-        
-        # Save summary statistics
-        summary_path = output_dir / "campaign_summary.json"
-        final_best_values = [campaign['best_values'][-1] for campaign in all_campaigns]
-        summary = {
-            'num_campaigns': len(all_campaigns),
-            'final_best_values': final_best_values,
-            'mean_final_best': float(np.mean(final_best_values)),
-            'std_final_best': float(np.std(final_best_values)),
-            'min_final_best': float(np.min(final_best_values)),
-            'max_final_best': float(np.max(final_best_values))
-        }
-        
-        with open(summary_path, 'w') as f:
-            json.dump(summary, f, indent=2)
-        print(f"Saved summary statistics: {summary_path}")
-        
-        print(f"\n=== Campaign Summary ===")
-        print(f"Completed {len(all_campaigns)} campaigns")
-        print(f"Mean final best value: {summary['mean_final_best']:.6f} ± {summary['std_final_best']:.6f}")
-        print(f"Best overall result: {summary['min_final_best']:.6f}")
-        print(f"Results saved in: {output_dir}")
+    ax.set_xlabel('Trial Number')
+    ax.set_ylabel('Best Objective Value')
+    ax.set_title('Average Convergence Curves by Init Count')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
     
-    else:
-        print("No campaigns completed successfully!")
+    convergence_path = output_dir / 'convergence_curves.png'
+    plt.savefig(str(convergence_path), dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved convergence curves: {convergence_path}")
+
+
+# Remove unused global variable
+# all_results = {}  # This is now handled in main()
 
 
 if __name__ == "__main__":
