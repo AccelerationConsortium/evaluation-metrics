@@ -21,6 +21,8 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import sys
 import os
+import logging
+import datetime
 
 # Add the bo_benchmarks directory to Python path
 bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
@@ -41,6 +43,41 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 obj1_name = "branin"
+
+
+def setup_logging(run_timestamp):
+    """Setup comprehensive logging to file and console."""
+    # Create logs directory with timestamp (separate from results)
+    logs_dir = Path(__file__).parent / "branin_evaluation_logs" / f"run_{run_timestamp}"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Setup file logger
+    log_file = logs_dir / "branin_evaluation.log"
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    
+    # Setup logger
+    logger = logging.getLogger('branin_evaluation')
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()  # Clear existing handlers
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger, logs_dir
 
 
 def branin(x1, x2):
@@ -236,7 +273,8 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
 
 def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
     """Run a single optimization campaign with metrics collection and return results."""
-    print(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials})...")
+    logger = logging.getLogger('branin_evaluation')
+    logger.info(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials})...")
     
     # Create main ax client for optimization with proper generation strategy
     # Use Sobol for initialization, then GPEI
@@ -361,9 +399,9 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
                 campaign_results['metrics'][metric_name].append(np.nan)
         
         if trial_idx % 10 == 0:
-            print(f"  Campaign {campaign_id}: Trial {trial_idx}, Current: {objective_value:.6f}, Best: {best_value:.6f}")
+            logger.info(f"  Campaign {campaign_id}: Trial {trial_idx}, Current: {objective_value:.6f}, Best: {best_value:.6f}")
     
-    print(f"Campaign {campaign_id} completed. Final best: {campaign_results['best_values'][-1]:.6f}")
+    logger.info(f"Campaign {campaign_id} completed. Final best: {campaign_results['best_values'][-1]:.6f}")
     return campaign_results
 
 
@@ -382,9 +420,17 @@ def main():
     print("This will run campaigns with different initialization counts and evaluate at all budget levels")
     print()
     
-    # Setup output directory
-    output_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results"
-    output_dir.mkdir(exist_ok=True)
+    # Create timestamped run directory (preserve all previous runs)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results"
+    output_dir = base_dir / f"run_{timestamp}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Setup logging (separate from results)
+    logger, logs_dir = setup_logging(timestamp)
+    logger.info("=== Starting Exhaustive Branin Evaluation ===")
+    logger.info(f"Output directory: {output_dir}")
+    logger.info(f"Logs directory: {logs_dir}")
     
     # Parameters for exhaustive evaluation
     init_counts = range(2, 31)  # 2 to 30 initialization points
@@ -396,7 +442,7 @@ def main():
     
     # Run campaigns for each initialization count
     for init_count in init_counts:
-        print(f"\n=== Testing {init_count} initialization points ===")
+        logger.info(f"\n=== Testing {init_count} initialization points ===")
         
         # Create subdirectory for this init count
         init_dir = output_dir / f"init_{init_count}"
@@ -413,19 +459,56 @@ def main():
                     num_init_trials=init_count
                 )
                 init_campaigns.append(campaign_results)
-            
-                print(f"  Campaign {campaign_id}: Final best = {campaign_results['best_values'][-1]:.6f}")
+                
+                # Save individual campaign immediately
+                campaign_file = init_dir / f"campaign_{campaign_id}.json"
+                with open(campaign_file, 'w') as f:
+                    # Convert numpy types for JSON serialization
+                    json_safe_results = {}
+                    for key, value in campaign_results.items():
+                        if isinstance(value, dict):
+                            json_safe_results[key] = {
+                                k: [float(v) if isinstance(v, (np.floating, np.integer)) else v for v in val]
+                                if isinstance(val, list) else val
+                                for k, val in value.items()
+                            }
+                        elif isinstance(value, list):
+                            json_safe_results[key] = [
+                                float(v) if isinstance(v, (np.floating, np.integer)) else v
+                                for v in value
+                            ]
+                        else:
+                            json_safe_results[key] = value
+                    json.dump(json_safe_results, f, indent=2)
+                
+                logger.info(f"Campaign {campaign_id}: Final best = {campaign_results['best_values'][-1]:.6f}")
+                logger.info(f"Saved campaign data: {campaign_file}")
                 
             except Exception as e:
-                print(f"Error in campaign {campaign_id}: {e}")
+                logger.error(f"Error in campaign {campaign_id}: {e}")
                 continue
         
         # Store results for this init count
         all_results[init_count] = init_campaigns
-        print(f"Completed {len(init_campaigns)}/{num_repeats} campaigns for init_count={init_count}")
+        logger.info(f"Completed {len(init_campaigns)}/{num_repeats} campaigns for init_count={init_count}")
+        
+        # Save intermediate results after each init_count completion
+        intermediate_path = output_dir / f"intermediate_results_init_{init_count}.json"
+        with open(intermediate_path, 'w') as f:
+            json.dump({
+                'completed_init_counts': list(all_results.keys()),
+                'current_init_count': init_count,
+                'campaigns_completed': len(init_campaigns),
+                'parameters': {
+                    'init_counts': list(init_counts),
+                    'num_repeats': num_repeats,
+                    'max_trials': max_trials
+                }
+            }, f, indent=2)
+        logger.info(f"Saved intermediate progress: {intermediate_path}")
     
     # Generate truncated budget analysis
-    print("\n=== Analyzing results across all budgets ===")
+    logger.info("\n=== Analyzing results across all budgets ===")
     budget_analysis = analyze_budget_truncation(all_results, max_trials)
     
     # Save comprehensive results
@@ -439,14 +522,15 @@ def main():
                 'max_trials': max_trials
             }
         }, f, indent=2)
-    print(f"Saved comprehensive results: {results_path}")
+    logger.info(f"Saved comprehensive results: {results_path}")
     
     # Create sanity check plots
     create_sanity_check_plots(budget_analysis, output_dir, all_results)
     
-    print(f"\n=== Evaluation Complete ===")
-    print(f"Tested init counts: {min(init_counts)}-{max(init_counts)}")
-    print(f"Results saved in: {output_dir}")
+    logger.info(f"\n=== Evaluation Complete ===")
+    logger.info(f"Tested init counts: {min(init_counts)}-{max(init_counts)}")
+    logger.info(f"Results saved in: {output_dir}")
+    logger.info(f"Logs saved in: {logs_dir}")
 
 
 def analyze_budget_truncation(all_results, max_trials):
