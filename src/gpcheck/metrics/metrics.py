@@ -1,3 +1,5 @@
+from typing import Any
+
 from gpytorch.mlls import LeaveOneOutPseudoLikelihood
 from gpytorch.settings import fast_pred_var
 import numpy as np
@@ -6,22 +8,44 @@ from sklearn.metrics import r2_score
 import torch
 
 
-def loo_pseudo_likelihood(model, train_X: torch.Tensor, train_Y: torch.Tensor) -> float:
+def loo_pseudo_likelihood(model: Any, train_X: torch.Tensor, train_Y: torch.Tensor) -> float:
     """
-    Negative mean leave‑one‑out log‑likelihood (lower is better).
-
-    Note: The GPInputWarning about matching training data is expected here
-    as we're calculating LOO-PL on the training data.
+    Compute negative mean leave-one-out pseudo-likelihood for a GP model.
+    
+    This function implements the leave-one-out pseudo-likelihood (LOO-PL) as described 
+    in Rasmussen & Williams (2006), Section 5.4.2. LOO-PL provides an efficient 
+    approximation to leave-one-out cross-validation without refitting the model.
+    
+    Args:
+        model: Fitted GPyTorch/BoTorch model with trained hyperparameters.
+               Should be in evaluation mode (model.eval()) for proper inference.
+        train_X: Training input data of shape (n, d) where n is number of points
+               and d is the input dimensionality.
+        train_Y: Training target data of shape (n, 1) or (n,).
+        
+    Returns:
+        Negative mean log-likelihood across all leave-one-out predictions.
+        Lower values indicate better model fit.
+        
+    Note:
+        The GPInputWarning about matching training data is expected here
+        as we're calculating LOO-PL on the training data itself.
+        
+    References:
+        Rasmussen, C. E., & Williams, C. K. I. (2006). Gaussian Processes for 
+        Machine Learning, Section 5.4.2. MIT Press.
     """
+    # Create leave-one-out pseudo-likelihood evaluator
     loo_mll = LeaveOneOutPseudoLikelihood(model.likelihood, model)
 
-    # GP output at the training inputs
+    # Compute GP posterior distribution at training inputs
     with torch.no_grad(), fast_pred_var():
         f_dist = model(train_X)
-        target = train_Y.squeeze(-1)
+        target = train_Y.squeeze(-1)  # Ensure target has shape (n,)
 
-    # average over points
-    return (-torch.as_tensor(loo_mll(f_dist, target)).mean()).item()
+    # Compute negative mean leave-one-out log-likelihood
+    loo_log_prob = loo_mll(f_dist, target)
+    return (-torch.as_tensor(loo_log_prob).mean()).item()
 
 
 def importance_concentration(imp: np.ndarray) -> dict:
