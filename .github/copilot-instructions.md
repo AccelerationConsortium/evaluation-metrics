@@ -1,6 +1,7 @@
 ## Development Practices
 
 - Start with minimal, lean implementations focused on proof-of-concept
+- Avoid creating new files until asked
 - Avoid implementing things from scratch
 - Avoid defensive error handling for hypothetical failures
 - Use print statements and logging sparingly, unless asked
