@@ -849,7 +849,7 @@ def main():
     
     # Parameters for exhaustive evaluation
     init_counts = range(2, 31)  # 2 to 30 initialization points
-    num_repeats = 1  # Number of repeat campaigns per init count
+    num_repeats = 10  # Number of repeat campaigns per init count
     max_trials = 30  # Run all campaigns to 30 trials
     
     # Storage for all results
