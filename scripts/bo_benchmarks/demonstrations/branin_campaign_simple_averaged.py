@@ -314,7 +314,7 @@ def main():
         ax.set_xlim(-10, None)  # Add whitespace for legend
 
         # Place legend inside plot with white background and transparency
-        labels = [line.get_label() for line in lines]
+        labels = [str(line.get_label()) for line in lines]
         legend = ax.legend(
             lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
         )

@@ -744,7 +744,7 @@ def create_campaign_gif(campaign_results, campaign_dir):
         from PIL import Image
 
         # Load frames as PIL Images (use palette mode for GIF)
-        pil_frames = [Image.open(fp).convert("P", palette=Image.ADAPTIVE) for fp in frames]
+        pil_frames = [Image.open(fp).convert("P") for fp in frames]
 
         # 2000 ms per frame, hold last for 1000 ms
         durations_ms = [2000] * len(pil_frames)
@@ -1179,7 +1179,7 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
 
     # Show convergence for a few representative init counts
     representative_inits = [2, 5, 10, 15, 20, 30]
-    colors = plt.cm.tab10(np.linspace(0, 1, len(representative_inits)))
+    colors = plt.cm.get_cmap("tab10")(np.linspace(0, 1, len(representative_inits)))
 
     for i, init_count in enumerate(representative_inits):
         if init_count not in all_results or not all_results[init_count]:

@@ -334,7 +334,7 @@ print(f"\nBest parameters: {best_parameters}")
 print(f"Best objective: {metrics}")
 
 # Get results data
-objectives = ax_client.objective_names
+objectives = list(ax_client.objective_names) if ax_client.objective_names else []
 df = ax_client.get_trials_data_frame()
 
 print(f"\nDataframe shape: {df.shape}")
@@ -378,38 +378,50 @@ ax1.set_xlim(-10, None)  # Add whitespace for legend
 
 # Plot 2: Evaluation metrics over trials (iteration-by-iteration results)
 if all_metrics:
-    trial_nums = [m["trial"] for m in all_metrics]
-    gp_r2_values = [m["gp_r2"] for m in all_metrics]
-    rank_tau_values = [m["rank_tau"] for m in all_metrics]
-    loo_values = [m["loo_nll"] for m in all_metrics]
-    imp_mean_values = [m["imp_mean"] for m in all_metrics]
-    imp_std_values = [m["imp_std"] for m in all_metrics]
+    trial_nums = [m["trial"] for m in all_metrics if m is not None]
+    gp_r2_values = [m["gp_r2"] for m in all_metrics if m is not None]
+    rank_tau_values = [m["rank_tau"] for m in all_metrics if m is not None]
+    loo_values = [m["loo_nll"] for m in all_metrics if m is not None]
+    imp_mean_values = [m["imp_mean"] for m in all_metrics if m is not None]
+    imp_std_values = [m["imp_std"] for m in all_metrics if m is not None]
 
     # Extract Ax CV R² and interval scores (filter None/NaN)
     ax_cv_r2_values = [
         m["ax_cv_r2"]
         for m in all_metrics
-        if (m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
+        if (m is not None and m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
     ]
     interval_score_values = [
-        m["interval_score"] for m in all_metrics if m["interval_score"] is not None
+        m["interval_score"]
+        for m in all_metrics
+        if m is not None and m["interval_score"] is not None
     ]
     ax_cv_interval_score_values = [
         m["ax_cv_interval_score"]
         for m in all_metrics
-        if (m["ax_cv_interval_score"] is not None and np.isfinite(m["ax_cv_interval_score"]))
+        if (
+            m is not None
+            and m["ax_cv_interval_score"] is not None
+            and np.isfinite(m["ax_cv_interval_score"])
+        )
     ]
 
     ax_cv_trial_nums = [
         m["trial"]
         for m in all_metrics
-        if (m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
+        if (m is not None and m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
     ]
-    interval_trial_nums = [m["trial"] for m in all_metrics if m["interval_score"] is not None]
+    interval_trial_nums = [
+        m["trial"] for m in all_metrics if m is not None and m["interval_score"] is not None
+    ]
     ax_cv_interval_trial_nums = [
         m["trial"]
         for m in all_metrics
-        if (m["ax_cv_interval_score"] is not None and np.isfinite(m["ax_cv_interval_score"]))
+        if (
+            m is not None
+            and m["ax_cv_interval_score"] is not None
+            and np.isfinite(m["ax_cv_interval_score"])
+        )
     ]
 
     # Create 7 y-axes as requested: 1 left + 6 right
@@ -726,7 +738,9 @@ if cv_dir.exists() and all_metrics:
 
         png_files = sorted(
             cv_dir.glob("branin_cv_plot_trial_*.png"),
-            key=lambda x: int(re.search(r"trial_(\d+)", x.name).group(1)),
+            key=lambda x: int(match.group(1))
+            if (match := re.search(r"trial_(\d+)", x.name))
+            else 0,
         )
         if png_files:
             images = []

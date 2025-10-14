@@ -15,7 +15,7 @@ sys.path.insert(0, str(bo_benchmarks_dir))
 
 def run_optimization_campaign(campaign_name, function_name, iterations, campaign_id):
     """Run a simple optimization campaign for testing."""
-    from benchmark_functions import evaluate_benchmark  # noqa: E402
+    from benchmark_functions import evaluate_benchmark  # type: ignore  # noqa: E402
 
     print(f"Starting campaign {campaign_id}: {campaign_name}")
     print(f"Function: {function_name}, Iterations: {iterations}")

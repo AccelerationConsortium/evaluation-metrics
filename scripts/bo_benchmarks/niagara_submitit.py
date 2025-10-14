@@ -105,7 +105,7 @@ def mongodb_evaluate(parameters, verbose=False):
     if not mongodb_uri:
         raise ValueError("MONGODB_URI environment variable is required")
 
-    import pymongo
+    import pymongo  # type: ignore
 
     client = pymongo.MongoClient(mongodb_uri)
 
