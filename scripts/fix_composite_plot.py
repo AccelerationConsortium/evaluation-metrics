@@ -3,11 +3,11 @@
 Quick fix for the composite plot to show evaluation metrics in bottom subplot.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-from pathlib import Path
 import json
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 obj1_name = "branin"
 
@@ -277,7 +277,7 @@ def create_fixed_composite_plot(all_campaigns, output_dir):
 
     # Place legend inside plot with white background and transparency
     if lines:
-        labels = [l.get_label() for l in lines]
+        labels = [line.get_label() for line in lines]
         legend = ax2.legend(
             lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
         )
@@ -310,7 +310,7 @@ def main():
         return
 
     with open(summary_file, "r") as f:
-        summary = json.load(f)
+        json.load(f)  # Load but don't store unused summary
 
     # Extract campaign data from summary
     all_campaigns = []

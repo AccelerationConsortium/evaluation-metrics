@@ -4,22 +4,23 @@ Branin optimization campaign with 10 repeat runs and averaged evaluation metrics
 This script runs multiple campaigns with different seeds and plots the average behavior.
 """
 
+from pathlib import Path
+import time
+
+from ax.modelbridge.cross_validation import cross_validate
+from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
+from ax.modelbridge.registry import Models
+from ax.plot.diagnostic import interact_cross_validation_plotly
+from ax.service.ax_client import AxClient, ObjectiveProperties
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ax.service.ax_client import AxClient, ObjectiveProperties
-from ax.modelbridge.cross_validation import cross_validate
-from ax.plot.diagnostic import interact_cross_validation_plotly
-from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
-from ax.modelbridge.registry import Models
-import matplotlib.pyplot as plt
-from pathlib import Path
-import torch
-from gpcheck.models import GPModel, GPConfig
-from gpcheck.metrics import loo_pseudo_likelihood, importance_concentration
-from sklearn.metrics import r2_score
 from scipy.stats import kendalltau
-import time
-import json
+from sklearn.metrics import r2_score
+import torch
+
+from gpcheck.metrics import loo_pseudo_likelihood
+from gpcheck.models import GPConfig, GPModel
 
 obj1_name = "branin"
 
@@ -158,7 +159,8 @@ def calculate_iteration_metrics(df, objective_name, trial_index):
     imp_std = np.std(inv_lengthscales)
 
     print(
-        f"Trial {trial_index}: GP R² = {gp_r2:.4f}, Rank τ = {rank_tau:.4f}, LOO NLL = {loo_nll:.4f}"
+        f"Trial {trial_index}: GP R² = {gp_r2:.4f}, Rank τ = {rank_tau:.4f}, "
+        f"LOO NLL = {loo_nll:.4f}"
     )
     print(
         f"Trial {trial_index}: Interval Score = {interval_score_val:.4f}, Imp Std = {imp_std:.4f}"
@@ -214,7 +216,8 @@ def calculate_ax_cross_validation_metrics(cv_client, trial_index):
         ax_cv_interval_score = np.mean(interval_score(y_act, lower_bounds, upper_bounds))
 
         print(
-            f"Trial {trial_index}: Ax CV R² = {ax_cv_r2:.4f}, Ax CV Interval Score = {ax_cv_interval_score:.4f}"
+            f"Trial {trial_index}: Ax CV R² = {ax_cv_r2:.4f}, "
+            f"Ax CV Interval Score = {ax_cv_interval_score:.4f}"
         )
 
         return ax_cv_r2, ax_cv_interval_score
@@ -585,7 +588,7 @@ if __name__ == "__main__":
         ax.set_xlim(-10, None)  # Add whitespace for legend
 
         # Place legend inside plot with white background and transparency
-        labels = [l.get_label() for l in lines]
+        labels = [line.get_label() for line in lines]
         legend = ax.legend(
             lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
         )

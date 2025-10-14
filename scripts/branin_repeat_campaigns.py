@@ -1,40 +1,39 @@
 #!/usr/bin/env python3
 """
-Run 10 repeat benchmark campaigns to determine optimal number of initialization points for Branin function.
-This script creates individual campaign plots and a composite analysis plot.
+Run 10 repeat benchmark campaigns to determine optimal number of initialization points
+for Branin function. This script creates individual campaign plots and a composite
+analysis plot.
 """
 
-import numpy as np
-import pandas as pd
-from ax.service.ax_client import AxClient, ObjectiveProperties
+import datetime
+import json
+import logging
+import os
+from pathlib import Path
+import sys
+import warnings
+
 from ax.modelbridge.cross_validation import cross_validate
-from ax.plot.diagnostic import interact_cross_validation_plotly
-from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
+from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.registry import Models
+from ax.plot.diagnostic import interact_cross_validation_plotly
+from ax.service.ax_client import AxClient, ObjectiveProperties
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from pathlib import Path
 import torch
-import json
-import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import sys
-import os
-import logging
-import datetime
-import imageio.v2 as imageio
 
 # Add the bo_benchmarks directory to Python path
 bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
 sys.path.insert(0, str(bo_benchmarks_dir))
 
 try:
-    from gpcheck.models import GPModel, GPConfig
-    from gpcheck.metrics import loo_pseudo_likelihood, importance_concentration
-    from sklearn.metrics import r2_score
     from scipy.stats import kendalltau
+    from sklearn.metrics import r2_score
+
+    from gpcheck.metrics import loo_pseudo_likelihood
+    from gpcheck.models import GPConfig, GPModel
 
     HAS_GPCHECK = True
 except ImportError:
@@ -232,7 +231,6 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
         gp_r2 = r2_score(test_Y.detach().cpu().numpy(), mean_pred.detach().cpu().numpy())
 
         ls, imp = gp_model.get_lengthscales()
-        imp_dict = importance_concentration(imp)
 
         # Calculate mean and std dev of feature importances (inverse lengthscales)
         imp_mean = np.mean(imp)
@@ -376,7 +374,7 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
                     best_value = data["mean"].min()
                 else:
                     best_value = objective_value
-        except:
+        except Exception:
             # Fallback: calculate best from stored values
             if campaign_results["best_values"]:
                 best_value = min(min(campaign_results["best_values"]), objective_value)
@@ -411,7 +409,8 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
 
         if trial_idx % 10 == 0:
             logger.info(
-                f"  Campaign {campaign_id}: Trial {trial_idx}, Current: {objective_value:.6f}, Best: {best_value:.6f}"
+                f"  Campaign {campaign_id}: Trial {trial_idx}, "
+                f"Current: {objective_value:.6f}, Best: {best_value:.6f}"
             )
 
     logger.info(
@@ -631,7 +630,6 @@ def create_plotly_campaign_plot(campaign_results, campaign_dir):
 
 def create_campaign_gif(campaign_results, campaign_dir):
     """Create GIF showing optimization progress over time."""
-    import math
 
     campaign_id = campaign_results["campaign_id"]
     trials = campaign_results["trials"]
@@ -654,9 +652,6 @@ def create_campaign_gif(campaign_results, campaign_dir):
     # Pre-calculate consistent colorbar limits
     obj_min = min(all_obj_vals)
     obj_max = max(all_obj_vals)
-
-    # Pre-calculate consistent tick marks for better scale consistency
-    from matplotlib.ticker import MaxNLocator
 
     # Create frames for each trial
     for frame_idx in range(1, len(trials), 2):  # Start from trial 1, every 2nd frame
@@ -702,10 +697,6 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax1.legend(loc="upper left")  # Fixed legend position
         ax1.grid(True, alpha=0.3)
 
-        # Set consistent tick marks for x1 and x2 axes
-        ax1.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax1.yaxis.set_major_locator(MaxNLocator(nbins=6))
-
         # Add colorbar with consistent range
         cbar = plt.colorbar(scatter, ax=ax1)
         cbar.set_label(f"{obj1_name} Value")
@@ -737,10 +728,6 @@ def create_campaign_gif(campaign_results, campaign_dir):
         ax2.set_xlim(0, len(trials))
         ax2.set_ylim(y_min_plot, y_max_plot)  # Fixed y-axis limits
 
-        # Set consistent tick marks for progress plot
-        ax2.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax2.yaxis.set_major_locator(MaxNLocator(nbins=6))
-
         plt.tight_layout()
 
         # Save frame
@@ -764,7 +751,8 @@ def create_campaign_gif(campaign_results, campaign_dir):
         if durations_ms:
             durations_ms[-1] = 1000
 
-        # Save with explicit per-frame delays; disposal=2 avoids artifacts; optimize=False preserves timing
+        # Save with explicit per-frame delays; disposal=2 avoids artifacts;
+        # optimize=False preserves timing
         pil_frames[0].save(
             str(gif_path),
             save_all=True,
@@ -955,7 +943,8 @@ def main():
     """Main execution function."""
     print("=== Exhaustive Branin Evaluation: Init Counts 2-30 ===")
     print(
-        "This will run campaigns with different initialization counts and evaluate at all budget levels"
+        "This will run campaigns with different initialization counts "
+        "and evaluate at all budget levels"
     )
     print()
 
@@ -1023,7 +1012,8 @@ def main():
                     json.dump(json_safe_results, f, indent=2)
 
                 logger.info(
-                    f"Campaign {campaign_id}: Final best = {campaign_results['best_values'][-1]:.6f}"
+                    f"Campaign {campaign_id}: Final best = "
+                    f"{campaign_results['best_values'][-1]:.6f}"
                 )
                 logger.info(f"Saved campaign data: {campaign_file}")
 
@@ -1080,7 +1070,7 @@ def main():
     # Create sanity check plots
     create_sanity_check_plots(budget_analysis, output_dir, all_results)
 
-    logger.info(f"\n=== Evaluation Complete ===")
+    logger.info("\n=== Evaluation Complete ===")
     logger.info(f"Tested init counts: {min(init_counts)}-{max(init_counts)}")
     logger.info(f"Results saved in: {output_dir}")
     logger.info(f"Logs saved in: {logs_dir}")

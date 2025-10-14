@@ -2,20 +2,21 @@
 """Submit batch optimization campaigns to Niagara cluster."""
 
 import os
-import sys
-import submitit
 from pathlib import Path
+import sys
+
+import numpy as np
+import submitit
 
 # Add the bo_benchmarks directory to Python path
 bo_benchmarks_dir = Path(__file__).parent / "bo_benchmarks"
 sys.path.insert(0, str(bo_benchmarks_dir))
 
-from benchmark_functions import evaluate_benchmark
-import numpy as np
-
 
 def run_optimization_campaign(campaign_name, function_name, iterations, campaign_id):
     """Run a simple optimization campaign for testing."""
+    from benchmark_functions import evaluate_benchmark  # noqa: E402
+
     print(f"Starting campaign {campaign_id}: {campaign_name}")
     print(f"Function: {function_name}, Iterations: {iterations}")
 
@@ -89,7 +90,7 @@ def main():
         cpus_per_task=1,
         slurm_partition="compute",
         slurm_account=account,
-        slurm_job_name=f"opt_campaign",
+        slurm_job_name="opt_campaign",
     )
 
     # Define the three campaigns

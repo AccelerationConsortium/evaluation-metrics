@@ -1,19 +1,15 @@
 """Simple BO benchmark with Ax-platform and submitit for Niagara cluster."""
 
-import json
-import os
 from datetime import datetime
+import os
 from random import shuffle
 from uuid import uuid4
 
-import numpy as np
-import pandas as pd
 from ax.modelbridge.factory import get_sobol
 from ax.service.ax_client import AxClient
-from submitit import AutoExecutor
-
 from benchmark_functions import evaluate_benchmark
-
+import pandas as pd
+from submitit import AutoExecutor
 
 # Configuration - modify these as needed
 FUNCTION_NAME = "branin"  # or "hartmann6"

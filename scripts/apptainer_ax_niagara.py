@@ -5,8 +5,9 @@ Addresses GLIBC compatibility issue using Ubuntu 22.04 container with GLIBC 2.34
 """
 
 import os
-import sys
 import subprocess
+import sys
+
 import submitit
 
 
@@ -46,9 +47,11 @@ def test_apptainer_ax_optimization():
     apptainer exec --writable-tmpfs $CONTAINER_PATH bash -c "
         apt-get update -qq && 
         apt-get install -y python3 python3-pip && 
-        python3 -m pip install --quiet torch==2.0.1+cpu --index-url https://download.pytorch.org/whl/cpu &&
+        python3 -m pip install --quiet torch==2.0.1+cpu \\
+            --index-url https://download.pytorch.org/whl/cpu &&
         python3 -m pip install --quiet ax-platform &&
-        python3 -c 'from ax.service.ax_client import AxClient; import torch; print(f\"SUCCESS: ax-platform {torch.__version__} working with GLIBC 2.34!\")'
+        python3 -c 'from ax.service.ax_client import AxClient; import torch; \\
+            print(f\"SUCCESS: ax-platform {torch.__version__} working with GLIBC 2.34!\")'
     "
     
     echo "Running optimization campaign..."
@@ -79,14 +82,16 @@ for i in range(10):
     parameters, trial_index = ax_client.get_next_trial()
     result = branin(parameters)
     ax_client.complete_trial(trial_index=trial_index, raw_data=result)
-    print(f'Trial {i+1}: f({parameters[\"x1\"]:.3f}, {parameters[\"x2\"]:.3f}) = {result[\"objective\"]:.6f}')
+    print(f'Trial {i+1}: f({parameters[\"x1\"]:.3f}, {parameters[\"x2\"]:.3f}) = '
+          f'{result[\"objective\"]:.6f}')
 
 best_parameters, values = ax_client.get_best_parameters()
 best_value = values[0]['objective']
 global_optimum = 0.39788735772973816
 gap = abs(best_value - global_optimum)
 
-print(f'\\nBest result: f({best_parameters[\"x1\"]:.6f}, {best_parameters[\"x2\"]:.6f}) = {best_value:.8f}')
+print(f'\\nBest result: f({best_parameters[\"x1\"]:.6f}, '
+      f'{best_parameters[\"x2\"]:.6f}) = {best_value:.8f}')
 print(f'Gap from global optimum: {gap:.8f}')
 print(f'SUCCESS: Apptainer + ax-platform working on Niagara!')
 "
@@ -133,7 +138,7 @@ def submit_to_niagara():
         slurm_account=os.getenv("SLURM_ACCOUNT", "def-sgbaird"),
     )
 
-    print(f"Submitting Apptainer ax-platform test to Niagara...")
+    print("Submitting Apptainer ax-platform test to Niagara...")
     print(f"Log folder: {log_folder}")
 
     job = executor.submit(test_apptainer_ax_optimization)

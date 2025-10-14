@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 """
-Branin optimization campaign with 50 trials and iteration-by-iteration evaluation metrics calculation.
-This script demonstrates proper use of ax-platform with GP evaluation metrics calculated after each trial.
+Branin optimization campaign with 50 trials and iteration-by-iteration
+evaluation metrics calculation. This script demonstrates proper use of
+ax-platform with GP evaluation metrics calculated after each trial.
 """
 
-import numpy as np
-import pandas as pd
-from ax.service.ax_client import AxClient, ObjectiveProperties
+from pathlib import Path
+
 from ax.modelbridge.cross_validation import cross_validate
-from ax.plot.diagnostic import interact_cross_validation_plotly
-from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
+from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.registry import Models
+from ax.plot.diagnostic import interact_cross_validation_plotly
+from ax.service.ax_client import AxClient, ObjectiveProperties
 import matplotlib.pyplot as plt
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from pathlib import Path
-import torch
-from gpcheck.models import GPModel, GPConfig
-from gpcheck.metrics import loo_pseudo_likelihood, importance_concentration
-from sklearn.metrics import r2_score
 from scipy.stats import kendalltau
+from sklearn.metrics import r2_score
+import torch
+
+from gpcheck.metrics import importance_concentration, loo_pseudo_likelihood
+from gpcheck.models import GPConfig, GPModel
 
 obj1_name = "branin"
 
@@ -551,7 +553,7 @@ if all_metrics:
     ax2.set_xlim(-10, None)  # Add whitespace for legend
 
     # Place legend inside plot with white background and transparency
-    labels = [l.get_label() for l in lines]
+    labels = [line.get_label() for line in lines]
     legend = ax2.legend(
         lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
     )
@@ -717,11 +719,10 @@ if all_metrics:
 cv_dir = Path(__file__).parent / "cv_plots"
 if cv_dir.exists() and all_metrics:
     try:
-        import imageio
-        from PIL import Image
-
         # Create GIF from PNG files (sorted by trial number, not alphabetically)
         import re
+
+        import imageio
 
         png_files = sorted(
             cv_dir.glob("branin_cv_plot_trial_*.png"),

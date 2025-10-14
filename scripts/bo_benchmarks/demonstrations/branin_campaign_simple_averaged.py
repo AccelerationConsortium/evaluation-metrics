@@ -4,14 +4,13 @@ Simple 10-repeat Branin campaigns for averaged results.
 This script runs the working single campaign 10 times and averages the results.
 """
 
-import numpy as np
-import pandas as pd
-import subprocess
-import time
 import json
 from pathlib import Path
+import subprocess
+import time
+
 import matplotlib.pyplot as plt
-import re
+import numpy as np
 
 
 def run_single_campaign_subprocess(seed):
@@ -315,13 +314,13 @@ def main():
         ax.set_xlim(-10, None)  # Add whitespace for legend
 
         # Place legend inside plot with white background and transparency
-        labels = [l.get_label() for l in lines]
+        labels = [line.get_label() for line in lines]
         legend = ax.legend(
             lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
         )
         legend.get_frame().set_facecolor("white")
 
-        print(f"\nAveraged metrics summary:")
+        print("\nAveraged metrics summary:")
         print(f"Trial range: {min(trial_nums)} to {max(trial_nums)}")
         print(f"Final GP R²: {gp_r2_values[-1]:.4f}")
         if ax_cv_r2_values:
