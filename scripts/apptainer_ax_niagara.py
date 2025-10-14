@@ -9,19 +9,20 @@ import sys
 import subprocess
 import submitit
 
+
 def test_apptainer_ax_optimization():
     """
     Test ax-platform optimization inside Apptainer container on compute node.
     """
     print("=== Niagara Apptainer Ax-Platform Test ===")
-    
+
     # Environment setup
-    job_id = os.environ.get('SLURM_JOB_ID', 'unknown')
-    node = os.environ.get('SLURMD_NODENAME', 'unknown')
+    job_id = os.environ.get("SLURM_JOB_ID", "unknown")
+    node = os.environ.get("SLURMD_NODENAME", "unknown")
     print(f"Job ID: {job_id}")
     print(f"Node: {node}")
     print(f"Working directory: {os.getcwd()}")
-    
+
     # Load apptainer module and set environment
     setup_script = """
     set -e
@@ -90,22 +91,23 @@ print(f'Gap from global optimum: {gap:.8f}')
 print(f'SUCCESS: Apptainer + ax-platform working on Niagara!')
 "
     """
-    
+
     try:
         print("Executing Apptainer-based ax-platform test...")
-        result = subprocess.run(['bash', '-c', setup_script], 
-                               capture_output=True, text=True, timeout=1800)
-        
+        result = subprocess.run(
+            ["bash", "-c", setup_script], capture_output=True, text=True, timeout=1800
+        )
+
         print("=== STDOUT ===")
         print(result.stdout)
-        
+
         if result.stderr:
             print("=== STDERR ===")
             print(result.stderr)
-        
+
         print(f"=== EXIT CODE: {result.returncode} ===")
         return result.returncode == 0
-        
+
     except subprocess.TimeoutExpired:
         print("ERROR: Test timed out after 30 minutes")
         return False
@@ -113,30 +115,32 @@ print(f'SUCCESS: Apptainer + ax-platform working on Niagara!')
         print(f"ERROR: {e}")
         return False
 
+
 def submit_to_niagara():
     """Submit the Apptainer test to Niagara cluster."""
-    
+
     log_folder = "/scratch/s/sgbaird/sgbaird/submitit_logs/apptainer_ax_test"
     os.makedirs(log_folder, exist_ok=True)
-    
+
     executor = submitit.AutoExecutor(folder=log_folder)
     executor.update_parameters(
         slurm_job_name="apptainer_ax_test",
         timeout_min=90,
-        slurm_partition="compute", 
+        slurm_partition="compute",
         nodes=1,
         tasks_per_node=1,
         cpus_per_task=2,
         slurm_account=os.getenv("SLURM_ACCOUNT", "def-sgbaird"),
     )
-    
+
     print(f"Submitting Apptainer ax-platform test to Niagara...")
     print(f"Log folder: {log_folder}")
-    
+
     job = executor.submit(test_apptainer_ax_optimization)
     print(f"✓ Job submitted with ID: {job.job_id}")
-    
+
     return job
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--submit":

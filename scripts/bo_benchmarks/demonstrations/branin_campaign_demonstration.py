@@ -36,16 +36,16 @@ def branin(x1, x2):
 def interval_score(y_true, lower, upper, alpha=0.05):
     """
     Calculate interval score for uncertainty quantification evaluation.
-    
+
     For 95% confidence intervals (alpha=0.05), the formula is:
     f_interval = (upper - lower) + (2/alpha) * max(0, lower - y) + (2/alpha) * max(0, y - upper)
-    
+
     Args:
         y_true: True values
         lower: Lower confidence bounds
-        upper: Upper confidence bounds 
+        upper: Upper confidence bounds
         alpha: Confidence level (0.05 for 95% CI)
-    
+
     Returns:
         Array of interval scores (lower is better)
     """
@@ -81,7 +81,7 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
         key = (round(float(row["x1"]), 6), round(float(row["x2"]), 6))
         if key in existing_params:
             continue
-        params = {"x1": float(row["x1"]), "x2": float(row["x2"]) }
+        params = {"x1": float(row["x1"]), "x2": float(row["x2"])}
         _, t_idx_cv = ax_client_cv.attach_trial(parameters=params)
         ax_client_cv.complete_trial(trial_index=t_idx_cv, raw_data=float(row[obj1_name]))
         existing_params.add(key)
@@ -93,7 +93,7 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
 
     # Ensure the CV model is fit to the latest data on every call by triggering a refit
     # via a one-off generation, then abandon that transient trial.
-    _ , tmp_trial_idx = ax_client_cv.get_next_trial()
+    _, tmp_trial_idx = ax_client_cv.get_next_trial()
     ax_client_cv.abandon_trial(tmp_trial_idx)
     model_bridge = ax_client_cv.generation_strategy.model
 
@@ -111,7 +111,9 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
     # Compute interval score using uncertainty bars from the CV plot (LOO predictions)
     # Pull error bars (95% CI half-width) from the CV plot trace and compute interval score
     err = trace.error_y  # type: ignore[attr-defined]
-    assert getattr(err, "array", None) is not None, "Error bars not available from Ax cross-validation"
+    assert getattr(err, "array", None) is not None, (
+        "Error bars not available from Ax cross-validation"
+    )
     err_array = np.asarray(err.array, dtype=float)
     lower = y_pred - err_array
     upper = y_pred + err_array
@@ -130,14 +132,15 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
 
     # Also save the CV data for slider creation
     cv_data = {
-        'trial': trial_index,
-        'x': y_act.tolist(),
-        'y': y_pred.tolist(), 
-        'error_y': err_array.tolist()
+        "trial": trial_index,
+        "x": y_act.tolist(),
+        "y": y_pred.tolist(),
+        "error_y": err_array.tolist(),
     }
     import json
+
     cv_data_path = cv_dir / f"branin_cv_data_trial_{trial_index}.json"
-    with open(cv_data_path, 'w') as f:
+    with open(cv_data_path, "w") as f:
         json.dump(cv_data, f)
     print(f"  Saved CV data: {cv_data_path}")
 
@@ -148,12 +151,21 @@ def calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index):
     vmax = float(max(np.max(y_act), np.max(y_pred)))
     pad = 0.05 * (vmax - vmin if vmax > vmin else 1.0)
     lo, hi = vmin - pad, vmax + pad
-    plt.plot([lo, hi], [lo, hi], 'k--', alpha=0.5, label='y = x')
-    plt.errorbar(y_act, y_pred, yerr=err_array, fmt='o', color='#1f77b4',
-                 ecolor='lightgray', elinewidth=1, capsize=2, alpha=0.8)
-    plt.xlabel('Observed')
-    plt.ylabel('Predicted (LOO)')
-    plt.title(f'Ax CV (trial {trial_index})')
+    plt.plot([lo, hi], [lo, hi], "k--", alpha=0.5, label="y = x")
+    plt.errorbar(
+        y_act,
+        y_pred,
+        yerr=err_array,
+        fmt="o",
+        color="#1f77b4",
+        ecolor="lightgray",
+        elinewidth=1,
+        capsize=2,
+        alpha=0.8,
+    )
+    plt.xlabel("Observed")
+    plt.ylabel("Predicted (LOO)")
+    plt.title(f"Ax CV (trial {trial_index})")
     plt.tight_layout()
     plt.savefig(cv_out_path)
     plt.close()
@@ -167,30 +179,32 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, re
     # Skip if not enough trials
     if trial_index < 3:
         return None
-    
+
     # Get all completed trials data
     df = ax_client.get_trials_data_frame()
     if len(df) < 3:
         return None
-    
+
     # ===== GP-based metrics (gpcheck) =====
     # Prepare data for GP model with train-test split
-    all_X = torch.tensor(df[['x1', 'x2']].values, dtype=torch.float32)
+    all_X = torch.tensor(df[["x1", "x2"]].values, dtype=torch.float32)
     all_Y = torch.tensor(df[obj1_name].values, dtype=torch.float32).unsqueeze(-1)
-    
+
     # Use 80-20 train-test split for realistic R² evaluation
     n_total = len(all_X)
     n_train = max(2, int(0.8 * n_total))  # Ensure at least 2 training points
-    
+
     # Use fixed random indices for reproducible splits
     np.random.seed(42)
     indices = np.random.permutation(n_total)
     train_indices = indices[:n_train]
     test_indices = indices[n_train:]
-    
+
     train_X = all_X[train_indices]
     train_Y = all_Y[train_indices]
-    test_X = all_X[test_indices] if len(test_indices) > 0 else train_X  # Fallback to train if no test data
+    test_X = (
+        all_X[test_indices] if len(test_indices) > 0 else train_X
+    )  # Fallback to train if no test data
     test_Y = all_Y[test_indices] if len(test_indices) > 0 else train_Y
 
     # Fit GP model using gpcheck
@@ -205,14 +219,16 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, re
 
     ls, imp = gp_model.get_lengthscales()
     imp_dict = importance_concentration(imp)
-    
+
     # Calculate mean and std dev of feature importances (inverse lengthscales)
     imp_mean = np.mean(imp)
     imp_std = np.std(imp)
 
     loo = loo_pseudo_likelihood(gp_model.model, train_X, train_Y)
 
-    rank_tau = kendalltau(test_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
+    rank_tau = kendalltau(
+        test_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy()
+    )[0]
 
     # Calculate interval score using GP predictions on test set
     y_true = test_Y.squeeze().detach().cpu().numpy()
@@ -225,21 +241,23 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, re
     mean_interval_score = np.mean(interval_scores)
 
     # ===== Ax cross validation metrics =====
-    ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(ax_client, ax_client_cv, trial_index)
+    ax_cv_r2, ax_cv_interval_score = calculate_ax_cross_validation_metrics(
+        ax_client, ax_client_cv, trial_index
+    )
 
     metrics = {
-        'trial': trial_index,
-        'gp_r2': gp_r2,
-        'ax_cv_r2': ax_cv_r2,
-        'interval_score': mean_interval_score,
-        'ax_cv_interval_score': ax_cv_interval_score,
-        'imp_cumsum': imp_dict,
-        'imp_mean': imp_mean,
-        'imp_std': imp_std,
-        'loo_nll': loo,
-        'rank_tau': rank_tau,
-        'lengthscales': ls,
-        'importance': imp
+        "trial": trial_index,
+        "gp_r2": gp_r2,
+        "ax_cv_r2": ax_cv_r2,
+        "interval_score": mean_interval_score,
+        "ax_cv_interval_score": ax_cv_interval_score,
+        "imp_cumsum": imp_dict,
+        "imp_mean": imp_mean,
+        "imp_std": imp_std,
+        "loo_nll": loo,
+        "rank_tau": rank_tau,
+        "lengthscales": ls,
+        "importance": imp,
     }
 
     # Print metrics for this iteration
@@ -299,11 +317,13 @@ for i in range(50):
 
     results = branin(x1, x2)
     ax_client.complete_trial(trial_index=trial_index, raw_data=results)
-    
+
     print(f"Trial {trial_index}: x1={x1:.3f}, x2={x2:.3f}, branin={results:.3f}")
-    
+
     # Calculate metrics after each trial (from trial 3 onward)
-    iteration_metrics = calculate_iteration_metrics(ax_client, ax_client_cv, trial_index, x1, x2, results)
+    iteration_metrics = calculate_iteration_metrics(
+        ax_client, ax_client_cv, trial_index, x1, x2, results
+    )
     if iteration_metrics:
         all_metrics.append(iteration_metrics)
 
@@ -322,11 +342,11 @@ if all_metrics:
     print("\n=== Final Evaluation Metrics ===")
     final_metrics = all_metrics[-1]
     print(f"GP R²: {final_metrics['gp_r2']:.4f}")
-    if final_metrics['ax_cv_r2'] is not None:
+    if final_metrics["ax_cv_r2"] is not None:
         print(f"Ax Cross Validation R²: {final_metrics['ax_cv_r2']:.4f}")
-    if final_metrics['interval_score'] is not None:
+    if final_metrics["interval_score"] is not None:
         print(f"GP Mean Interval Score: {final_metrics['interval_score']:.4f}")
-    if final_metrics['ax_cv_interval_score'] is not None:
+    if final_metrics["ax_cv_interval_score"] is not None:
         print(f"Ax CV Mean Interval Score: {final_metrics['ax_cv_interval_score']:.4f}")
     print(f"Rank correlation (τ): {final_metrics['rank_tau']:.4f}")
     print(f"Leave-One-Out Negative Log-Likelihood: {final_metrics['loo_nll']:.2f}")
@@ -356,60 +376,96 @@ ax1.set_xlim(-10, None)  # Add whitespace for legend
 
 # Plot 2: Evaluation metrics over trials (iteration-by-iteration results)
 if all_metrics:
-    trial_nums = [m['trial'] for m in all_metrics]
-    gp_r2_values = [m['gp_r2'] for m in all_metrics]
-    rank_tau_values = [m['rank_tau'] for m in all_metrics] 
-    loo_values = [m['loo_nll'] for m in all_metrics]
-    imp_mean_values = [m['imp_mean'] for m in all_metrics]
-    imp_std_values = [m['imp_std'] for m in all_metrics]
-    
+    trial_nums = [m["trial"] for m in all_metrics]
+    gp_r2_values = [m["gp_r2"] for m in all_metrics]
+    rank_tau_values = [m["rank_tau"] for m in all_metrics]
+    loo_values = [m["loo_nll"] for m in all_metrics]
+    imp_mean_values = [m["imp_mean"] for m in all_metrics]
+    imp_std_values = [m["imp_std"] for m in all_metrics]
+
     # Extract Ax CV R² and interval scores (filter None/NaN)
-    ax_cv_r2_values = [m['ax_cv_r2'] for m in all_metrics if (m['ax_cv_r2'] is not None and np.isfinite(m['ax_cv_r2']))]
-    interval_score_values = [m['interval_score'] for m in all_metrics if m['interval_score'] is not None]
-    ax_cv_interval_score_values = [m['ax_cv_interval_score'] for m in all_metrics if (m['ax_cv_interval_score'] is not None and np.isfinite(m['ax_cv_interval_score']))]
-    
-    ax_cv_trial_nums = [m['trial'] for m in all_metrics if (m['ax_cv_r2'] is not None and np.isfinite(m['ax_cv_r2']))]
-    interval_trial_nums = [m['trial'] for m in all_metrics if m['interval_score'] is not None]
-    ax_cv_interval_trial_nums = [m['trial'] for m in all_metrics if (m['ax_cv_interval_score'] is not None and np.isfinite(m['ax_cv_interval_score']))]
-    
+    ax_cv_r2_values = [
+        m["ax_cv_r2"]
+        for m in all_metrics
+        if (m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
+    ]
+    interval_score_values = [
+        m["interval_score"] for m in all_metrics if m["interval_score"] is not None
+    ]
+    ax_cv_interval_score_values = [
+        m["ax_cv_interval_score"]
+        for m in all_metrics
+        if (m["ax_cv_interval_score"] is not None and np.isfinite(m["ax_cv_interval_score"]))
+    ]
+
+    ax_cv_trial_nums = [
+        m["trial"]
+        for m in all_metrics
+        if (m["ax_cv_r2"] is not None and np.isfinite(m["ax_cv_r2"]))
+    ]
+    interval_trial_nums = [m["trial"] for m in all_metrics if m["interval_score"] is not None]
+    ax_cv_interval_trial_nums = [
+        m["trial"]
+        for m in all_metrics
+        if (m["ax_cv_interval_score"] is not None and np.isfinite(m["ax_cv_interval_score"]))
+    ]
+
     # Create 7 y-axes as requested: 1 left + 6 right
     # Left axis: Best-so-far trace
     # Right axes: R² (shared), Rank τ, LOO NLL, GP Interval Score, Ax CV Interval Score, Imp Std
-    
-    ax2_r2 = ax2.twinx()       # Right axis 1: R² values (0-1)
-    ax2_tau = ax2.twinx()      # Right axis 2: Rank correlation τ (-1 to 1)  
-    ax2_loo = ax2.twinx()      # Right axis 3: LOO NLL
-    ax2_gp_int = ax2.twinx()   # Right axis 4: GP Interval Score
-    ax2_ax_int = ax2.twinx()   # Right axis 5: Ax CV Interval Score
+
+    ax2_r2 = ax2.twinx()  # Right axis 1: R² values (0-1)
+    ax2_tau = ax2.twinx()  # Right axis 2: Rank correlation τ (-1 to 1)
+    ax2_loo = ax2.twinx()  # Right axis 3: LOO NLL
+    ax2_gp_int = ax2.twinx()  # Right axis 4: GP Interval Score
+    ax2_ax_int = ax2.twinx()  # Right axis 5: Ax CV Interval Score
     ax2_imp_std = ax2.twinx()  # Right axis 6: Importance Std Dev
-    
+
     # Position the additional y-axes
-    ax2_tau.spines['right'].set_position(('outward', 60))
-    ax2_loo.spines['right'].set_position(('outward', 120))
-    ax2_gp_int.spines['right'].set_position(('outward', 180))
-    ax2_ax_int.spines['right'].set_position(('outward', 240))
-    ax2_imp_std.spines['right'].set_position(('outward', 300))
-    
+    ax2_tau.spines["right"].set_position(("outward", 60))
+    ax2_loo.spines["right"].set_position(("outward", 120))
+    ax2_gp_int.spines["right"].set_position(("outward", 180))
+    ax2_ax_int.spines["right"].set_position(("outward", 240))
+    ax2_imp_std.spines["right"].set_position(("outward", 300))
+
     # Plot best-so-far trace on the left (main) y-axis
     best_so_far = np.minimum.accumulate(df[objective_name])
-    line_best = ax2.plot(df.index, best_so_far, color='gray', linewidth=6, alpha=0.3, 
-                         label='Best so far', linestyle='-', zorder=1)
-    
+    line_best = ax2.plot(
+        df.index,
+        best_so_far,
+        color="gray",
+        linewidth=6,
+        alpha=0.3,
+        label="Best so far",
+        linestyle="-",
+        zorder=1,
+    )
+
     # Plot R² values on right axis 1
-    line_gp_r2 = ax2_r2.plot(trial_nums, gp_r2_values, 'r-', label='GP R²', marker='o', linewidth=2, zorder=3)
+    line_gp_r2 = ax2_r2.plot(
+        trial_nums, gp_r2_values, "r-", label="GP R²", marker="o", linewidth=2, zorder=3
+    )
     lines = line_best + line_gp_r2
-    
+
     # Plot Ax CV R² if available (also on right axis 1)
     if ax_cv_r2_values:
-        line_ax_r2 = ax2_r2.plot(ax_cv_trial_nums, ax_cv_r2_values, 'orange', label='Ax CV R²', marker='d', 
-                              linewidth=2, linestyle='--', zorder=3)
+        line_ax_r2 = ax2_r2.plot(
+            ax_cv_trial_nums,
+            ax_cv_r2_values,
+            "orange",
+            label="Ax CV R²",
+            marker="d",
+            linewidth=2,
+            linestyle="--",
+            zorder=3,
+        )
         lines += line_ax_r2
-    
+
     # Set R² axis range dynamically to include negative values if present
     r2_all = [r for r in gp_r2_values if not np.isnan(r)]
     if ax_cv_r2_values:
         r2_all += [r for r in ax_cv_r2_values if not np.isnan(r)]
-    
+
     if r2_all:  # Only set limits if we have valid R² values
         r2_min = min(r2_all)
         r2_max = max(r2_all)
@@ -417,60 +473,90 @@ if all_metrics:
         ax2_r2.set_ylim(r2_min - margin, r2_max + margin)
     else:
         ax2_r2.set_ylim(-1, 1)  # Default range if no valid R² values
-    
+
     # Plot rank tau correlation on right axis 2 (fixed -1 to 1 range)
-    line_tau = ax2_tau.plot(trial_nums, rank_tau_values, 'g-', label='Rank τ', marker='s', linewidth=2, zorder=3)
+    line_tau = ax2_tau.plot(
+        trial_nums, rank_tau_values, "g-", label="Rank τ", marker="s", linewidth=2, zorder=3
+    )
     lines += line_tau
     ax2_tau.set_ylim(-1, 1)
-    
+
     # Plot LOO NLL on right axis 3 (auto range)
-    line_loo = ax2_loo.plot(trial_nums, loo_values, 'b-', label='LOO NLL', marker='^', linewidth=2, zorder=3)
+    line_loo = ax2_loo.plot(
+        trial_nums, loo_values, "b-", label="LOO NLL", marker="^", linewidth=2, zorder=3
+    )
     lines += line_loo
-    
+
     # Plot GP interval score on right axis 4 (auto range)
     if interval_score_values:
-        line_gp_int = ax2_gp_int.plot(interval_trial_nums, interval_score_values, 'purple', label='GP Interval Score', 
-                              marker='v', linewidth=2, linestyle=':', zorder=3)
+        line_gp_int = ax2_gp_int.plot(
+            interval_trial_nums,
+            interval_score_values,
+            "purple",
+            label="GP Interval Score",
+            marker="v",
+            linewidth=2,
+            linestyle=":",
+            zorder=3,
+        )
         lines += line_gp_int
-    
+
     # Plot Ax CV interval score on right axis 5 (auto range)
     if ax_cv_interval_score_values:
-        line_ax_int = ax2_ax_int.plot(ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'magenta', 
-                              label='Ax CV Interval Score', marker='*', linewidth=2, linestyle='-.', zorder=3)
+        line_ax_int = ax2_ax_int.plot(
+            ax_cv_interval_trial_nums,
+            ax_cv_interval_score_values,
+            "magenta",
+            label="Ax CV Interval Score",
+            marker="*",
+            linewidth=2,
+            linestyle="-.",
+            zorder=3,
+        )
         lines += line_ax_int
-    
+
     # Plot importance std dev on right axis 6 (auto range)
-    line_imp_std = ax2_imp_std.plot(trial_nums, imp_std_values, 'pink', 
-                              label='Importance Std', marker='p', linewidth=2, linestyle='-.', zorder=3)
+    line_imp_std = ax2_imp_std.plot(
+        trial_nums,
+        imp_std_values,
+        "pink",
+        label="Importance Std",
+        marker="p",
+        linewidth=2,
+        linestyle="-.",
+        zorder=3,
+    )
     lines += line_imp_std
-        
+
     # Set axis labels and colors
     ax2.set_xlabel("Trial Number")
-    ax2.set_ylabel(f"Best {objective_name}", color='gray')
-    ax2_r2.set_ylabel("R² Values", color='red')
-    ax2_tau.set_ylabel("Rank Correlation (τ)", color='green')
-    ax2_loo.set_ylabel("LOO NLL", color='blue')
-    ax2_gp_int.set_ylabel("GP Interval Score", color='purple')
-    ax2_ax_int.set_ylabel("Ax CV Interval Score", color='magenta')
-    ax2_imp_std.set_ylabel("Importance Std", color='pink')
-    
+    ax2.set_ylabel(f"Best {objective_name}", color="gray")
+    ax2_r2.set_ylabel("R² Values", color="red")
+    ax2_tau.set_ylabel("Rank Correlation (τ)", color="green")
+    ax2_loo.set_ylabel("LOO NLL", color="blue")
+    ax2_gp_int.set_ylabel("GP Interval Score", color="purple")
+    ax2_ax_int.set_ylabel("Ax CV Interval Score", color="magenta")
+    ax2_imp_std.set_ylabel("Importance Std", color="pink")
+
     # Set tick colors to match y-axis colors
-    ax2.tick_params(axis='y', labelcolor='gray')
-    ax2_r2.tick_params(axis='y', labelcolor='red')
-    ax2_tau.tick_params(axis='y', labelcolor='green')
-    ax2_loo.tick_params(axis='y', labelcolor='blue')
-    ax2_gp_int.tick_params(axis='y', labelcolor='purple')
-    ax2_ax_int.tick_params(axis='y', labelcolor='magenta')
-    ax2_imp_std.tick_params(axis='y', labelcolor='pink')
-    
+    ax2.tick_params(axis="y", labelcolor="gray")
+    ax2_r2.tick_params(axis="y", labelcolor="red")
+    ax2_tau.tick_params(axis="y", labelcolor="green")
+    ax2_loo.tick_params(axis="y", labelcolor="blue")
+    ax2_gp_int.tick_params(axis="y", labelcolor="purple")
+    ax2_ax_int.tick_params(axis="y", labelcolor="magenta")
+    ax2_imp_std.tick_params(axis="y", labelcolor="pink")
+
     ax2.set_title("Evaluation Metrics vs Trial (Iteration-by-Iteration)")
     ax2.set_xlim(-10, None)  # Add whitespace for legend
-    
+
     # Place legend inside plot with white background and transparency
     labels = [l.get_label() for l in lines]
-    legend = ax2.legend(lines, labels, loc='upper left', framealpha=0.8, fancybox=False, shadow=False)
-    legend.get_frame().set_facecolor('white')
-    
+    legend = ax2.legend(
+        lines, labels, loc="upper left", framealpha=0.8, fancybox=False, shadow=False
+    )
+    legend.get_frame().set_facecolor("white")
+
     print(f"\nLOO Negative Log-Likelihood values: {loo_values}")
     print(f"Rank tau correlation values: {rank_tau_values}")
     if ax_cv_r2_values:
@@ -480,102 +566,150 @@ if all_metrics:
     if ax_cv_interval_score_values:
         print(f"Ax CV Interval Score values: {ax_cv_interval_score_values}")
     print(f"Importance Std values: {imp_std_values}")
-    
+
 else:
-    ax2.text(0.5, 0.5, 'Not enough data\nfor metrics calculation', 
-            ha='center', va='center', transform=ax2.transAxes)
+    ax2.text(
+        0.5,
+        0.5,
+        "Not enough data\nfor metrics calculation",
+        ha="center",
+        va="center",
+        transform=ax2.transAxes,
+    )
     ax2.set_title("Evaluation Metrics")
 
 plt.tight_layout()
 # Save matplotlib figure to the same directory as this script
-_out_path = Path(__file__).with_name('branin_campaign_demonstration_results.png')
+_out_path = Path(__file__).with_name("branin_campaign_demonstration_results.png")
 _out_path.parent.mkdir(parents=True, exist_ok=True)
-plt.savefig(str(_out_path), dpi=150, bbox_inches='tight')
+plt.savefig(str(_out_path), dpi=150, bbox_inches="tight")
 plt.show()
 
 # Create and save Plotly version
 if all_metrics:
     # Create subplots with secondary y-axes
     plotly_fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=['Optimization Progress', 'Evaluation Metrics vs Trial'],
+        rows=2,
+        cols=1,
+        subplot_titles=["Optimization Progress", "Evaluation Metrics vs Trial"],
         vertical_spacing=0.15,
-        specs=[[{"secondary_y": False}], [{"secondary_y": True}]]
+        specs=[[{"secondary_y": False}], [{"secondary_y": True}]],
     )
-    
+
     # Top plot: Optimization progress
     plotly_fig.add_trace(
-        go.Scatter(x=df.index, y=df[objective_name], mode='markers', 
-                  name='Observed', marker=dict(color='black', symbol='circle-open')),
-        row=1, col=1
+        go.Scatter(
+            x=df.index,
+            y=df[objective_name],
+            mode="markers",
+            name="Observed",
+            marker=dict(color="black", symbol="circle-open"),
+        ),
+        row=1,
+        col=1,
     )
     best_so_far = np.minimum.accumulate(df[objective_name])
     plotly_fig.add_trace(
-        go.Scatter(x=df.index, y=best_so_far, mode='lines', 
-                  name='Best to Trial', line=dict(color='#0033FF', width=2)),
-        row=1, col=1
+        go.Scatter(
+            x=df.index,
+            y=best_so_far,
+            mode="lines",
+            name="Best to Trial",
+            line=dict(color="#0033FF", width=2),
+        ),
+        row=1,
+        col=1,
     )
-    
+
     # Bottom plot: Metrics
     # Best-so-far trace (gray, semi-transparent)
     plotly_fig.add_trace(
-        go.Scatter(x=df.index, y=best_so_far, mode='lines', 
-                  name='Best so far', line=dict(color='gray', width=6), opacity=0.3),
-        row=2, col=1
+        go.Scatter(
+            x=df.index,
+            y=best_so_far,
+            mode="lines",
+            name="Best so far",
+            line=dict(color="gray", width=6),
+            opacity=0.3,
+        ),
+        row=2,
+        col=1,
     )
-    
+
     # GP R² (red)
     plotly_fig.add_trace(
-        go.Scatter(x=trial_nums, y=gp_r2_values, mode='lines+markers', 
-                  name='GP R²', line=dict(color='red'), marker=dict(symbol='circle')),
-        row=2, col=1, secondary_y=True
+        go.Scatter(
+            x=trial_nums,
+            y=gp_r2_values,
+            mode="lines+markers",
+            name="GP R²",
+            line=dict(color="red"),
+            marker=dict(symbol="circle"),
+        ),
+        row=2,
+        col=1,
+        secondary_y=True,
     )
-    
+
     # Ax CV R² (orange, if available)
     if ax_cv_r2_values:
         plotly_fig.add_trace(
-            go.Scatter(x=ax_cv_trial_nums, y=ax_cv_r2_values, mode='lines+markers', 
-                      name='Ax CV R²', line=dict(color='orange', dash='dash'), 
-                      marker=dict(symbol='diamond')),
-            row=2, col=1, secondary_y=True
+            go.Scatter(
+                x=ax_cv_trial_nums,
+                y=ax_cv_r2_values,
+                mode="lines+markers",
+                name="Ax CV R²",
+                line=dict(color="orange", dash="dash"),
+                marker=dict(symbol="diamond"),
+            ),
+            row=2,
+            col=1,
+            secondary_y=True,
         )
-    
+
     # Other metrics (will be on secondary y-axis, but we'll handle scaling)
-    colors = ['green', 'blue', 'purple', 'magenta', 'pink']
+    colors = ["green", "blue", "purple", "magenta", "pink"]
     metrics_data = [
-        (trial_nums, rank_tau_values, 'Rank τ', 'square'),
-        (trial_nums, loo_values, 'LOO NLL', 'triangle-up'),
-        (interval_trial_nums, interval_score_values, 'GP Interval Score', 'triangle-down'),
-        (ax_cv_interval_trial_nums, ax_cv_interval_score_values, 'Ax CV Interval Score', 'star'),
-        (trial_nums, imp_std_values, 'Importance Std', 'pentagon')
+        (trial_nums, rank_tau_values, "Rank τ", "square"),
+        (trial_nums, loo_values, "LOO NLL", "triangle-up"),
+        (interval_trial_nums, interval_score_values, "GP Interval Score", "triangle-down"),
+        (ax_cv_interval_trial_nums, ax_cv_interval_score_values, "Ax CV Interval Score", "star"),
+        (trial_nums, imp_std_values, "Importance Std", "pentagon"),
     ]
-    
+
     for i, (x_data, y_data, name, symbol) in enumerate(metrics_data):
         if y_data:  # Only plot if data exists
             plotly_fig.add_trace(
-                go.Scatter(x=x_data, y=y_data, mode='lines+markers', 
-                          name=name, line=dict(color=colors[i]), 
-                          marker=dict(symbol=symbol), yaxis='y3'),
-                row=2, col=1
+                go.Scatter(
+                    x=x_data,
+                    y=y_data,
+                    mode="lines+markers",
+                    name=name,
+                    line=dict(color=colors[i]),
+                    marker=dict(symbol=symbol),
+                    yaxis="y3",
+                ),
+                row=2,
+                col=1,
             )
-    
+
     # Update layout
     plotly_fig.update_layout(
         title="Branin Campaign Results",
         height=800,
         showlegend=True,
-        legend=dict(x=0.02, y=0.98, bgcolor='rgba(255,255,255,0.8)')
+        legend=dict(x=0.02, y=0.98, bgcolor="rgba(255,255,255,0.8)"),
     )
-    
+
     # Update axes
     plotly_fig.update_xaxes(title_text="Trial Number", row=1, col=1)
     plotly_fig.update_yaxes(title_text=f"{objective_name} objective", row=1, col=1)
     plotly_fig.update_xaxes(title_text="Trial Number", row=2, col=1)
     plotly_fig.update_yaxes(title_text=f"Best {objective_name}", row=2, col=1)
     plotly_fig.update_yaxes(title_text="Metrics", secondary_y=True, row=2, col=1)
-    
+
     # Save Plotly HTML
-    _html_path = Path(__file__).with_name('branin_campaign_demonstration_results.html')
+    _html_path = Path(__file__).with_name("branin_campaign_demonstration_results.html")
     plotly_fig.write_html(str(_html_path), include_plotlyjs="cdn")
     print(f"Saved Plotly HTML: {_html_path}")
 
@@ -585,89 +719,94 @@ if cv_dir.exists() and all_metrics:
     try:
         import imageio
         from PIL import Image
-        
+
         # Create GIF from PNG files (sorted by trial number, not alphabetically)
         import re
-        png_files = sorted(cv_dir.glob("branin_cv_plot_trial_*.png"), 
-                          key=lambda x: int(re.search(r'trial_(\d+)', x.name).group(1)))
+
+        png_files = sorted(
+            cv_dir.glob("branin_cv_plot_trial_*.png"),
+            key=lambda x: int(re.search(r"trial_(\d+)", x.name).group(1)),
+        )
         if png_files:
             images = []
             for png_file in png_files:
                 images.append(imageio.imread(png_file))
-            
+
             gif_path = cv_dir / "branin_cv_evolution.gif"
             imageio.mimsave(gif_path, images, duration=3.2)  # 4x slower (was 0.8, now 3.2)
             print(f"Created GIF: {gif_path}")
-            
+
             # Try to create plotly slider figure
             try:
                 # Create plotly figure with slider from the saved CV data JSON files
                 slider_fig = go.Figure()
-                
+
                 # Load data for each trial from the saved JSON files
                 trial_data = []
-                for trial_idx in [m['trial'] for m in all_metrics if m['ax_cv_r2'] is not None]:
+                for trial_idx in [m["trial"] for m in all_metrics if m["ax_cv_r2"] is not None]:
                     json_file = cv_dir / f"branin_cv_data_trial_{trial_idx}.json"
                     if json_file.exists():
                         try:
                             import json
-                            with open(json_file, 'r') as f:
+
+                            with open(json_file, "r") as f:
                                 data = json.load(f)
                             trial_data.append(data)
                         except Exception as e:
                             print(f"Could not load JSON data from trial {trial_idx}: {e}")
                             continue
-                
+
                 if trial_data:
                     # Add diagonal reference line
                     all_x = []
                     all_y = []
                     for trial in trial_data:
-                        all_x.extend(trial['x'])
-                        all_y.extend(trial['y'])
-                    
+                        all_x.extend(trial["x"])
+                        all_y.extend(trial["y"])
+
                     if all_x and all_y:
                         vmin = min(min(all_x), min(all_y))
                         vmax = max(max(all_x), max(all_y))
                         pad = 0.05 * (vmax - vmin if vmax > vmin else 1.0)
                         lo, hi = vmin - pad, vmax + pad
-                        
+
                         # Add diagonal line (always visible)
                         slider_fig.add_trace(
                             go.Scatter(
-                                x=[lo, hi], y=[lo, hi],
-                                mode='lines',
-                                line=dict(color='black', dash='dash'),
-                                name='y = x',
-                                showlegend=True
+                                x=[lo, hi],
+                                y=[lo, hi],
+                                mode="lines",
+                                line=dict(color="black", dash="dash"),
+                                name="y = x",
+                                showlegend=True,
                             )
                         )
-                    
+
                     # Add data for each trial
                     for i, trial in enumerate(trial_data):
-                        if trial['x'] and trial['y']:
+                        if trial["x"] and trial["y"]:
                             # Add scatter plot with error bars
                             error_y = None
-                            if trial['error_y']:
+                            if trial["error_y"]:
                                 error_y = dict(
-                                    type='data',
-                                    array=trial['error_y'],
+                                    type="data",
+                                    array=trial["error_y"],
                                     visible=True,
-                                    color='lightgray'
+                                    color="lightgray",
                                 )
-                            
+
                             slider_fig.add_trace(
                                 go.Scatter(
-                                    x=trial['x'], 
-                                    y=trial['y'],
-                                    mode='markers',
-                                    marker=dict(color='#1f77b4', size=6),
+                                    x=trial["x"],
+                                    y=trial["y"],
+                                    mode="markers",
+                                    marker=dict(color="#1f77b4", size=6),
                                     error_y=error_y,
-                                    name=f'Trial {trial["trial"]}',
-                                    visible=(i == 0)  # Only first trial visible initially
+                                    name=f"Trial {trial['trial']}",
+                                    visible=(i == 0),  # Only first trial visible initially
                                 )
                             )
-                    
+
                     # Create slider steps
                     steps = []
                     for i, trial in enumerate(trial_data):
@@ -675,39 +814,41 @@ if cv_dir.exists() and all_metrics:
                         visibility = [True]  # Diagonal line always visible
                         visibility.extend([False] * len(trial_data))  # All data traces hidden
                         visibility[i + 1] = True  # Show current trial's data
-                        
+
                         step = dict(
                             method="update",
                             args=[{"visible": visibility}],
-                            label=f"Trial {trial['trial']}"
+                            label=f"Trial {trial['trial']}",
                         )
                         steps.append(step)
-                    
-                    sliders = [dict(
-                        active=0,
-                        currentvalue={"prefix": "Showing Trial: "},
-                        pad={"t": 50},
-                        steps=steps
-                    )]
-                    
+
+                    sliders = [
+                        dict(
+                            active=0,
+                            currentvalue={"prefix": "Showing Trial: "},
+                            pad={"t": 50},
+                            steps=steps,
+                        )
+                    ]
+
                     slider_fig.update_layout(
                         sliders=sliders,
                         title="Cross-Validation Evolution (Interactive Slider)",
                         xaxis_title="Observed",
                         yaxis_title="Predicted (LOO)",
-                        showlegend=True
+                        showlegend=True,
                     )
-                    
-                    slider_html_path = cv_dir / "branin_cv_evolution_slider.html" 
+
+                    slider_html_path = cv_dir / "branin_cv_evolution_slider.html"
                     slider_fig.write_html(str(slider_html_path), include_plotlyjs="cdn")
                     print(f"Created Plotly slider figure: {slider_html_path}")
                 else:
                     print("No valid trial data found for slider figure")
-                    
+
             except Exception as e:
                 print(f"Could not create plotly slider figure: {e}")
                 print("Falling back to individual HTML files")
-                
+
     except ImportError:
         print("imageio not available - cannot create GIF")
         print("Falling back to individual PNG files")
