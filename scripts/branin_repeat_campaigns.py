@@ -278,7 +278,7 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
 
 def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None):
     """Run a single optimization campaign with metrics collection and return results.
-    
+
     Args:
         campaign_id: Unique identifier for this campaign
         num_trials: Total number of optimization trials to run
@@ -286,7 +286,10 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None
         seed: Random seed for reproducibility. If None, uses default seeding.
     """
     logger = logging.getLogger("branin_evaluation")
-    logger.info(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials}, seed={seed})...")
+    logger.info(
+        f"Starting campaign {campaign_id} (init={num_init_trials}, "
+        f"trials={num_trials}, seed={seed})..."
+    )
 
     # Set random seeds for reproducibility
     if seed is not None:
@@ -952,60 +955,62 @@ def create_composite_plot(all_campaigns, output_dir):
 
 def combine_parallel_results(partial_results_dir):
     """Combine partial results from parallel execution and generate final analysis.
-    
+
     Args:
         partial_results_dir: Path to directory containing partial results from parallel jobs
     """
-    print(f"=== Combining Parallel Results ===")
+    print("=== Combining Parallel Results ===")
     print(f"Reading from: {partial_results_dir}")
-    
+
     partial_dir = Path(partial_results_dir)
     if not partial_dir.exists():
         print(f"ERROR: Directory {partial_results_dir} does not exist")
         return
-    
+
     # Find all run directories
     run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_parallel_*"))
     if not run_dirs:
         print(f"ERROR: No partial result directories found in {partial_results_dir}")
         return
-    
+
     print(f"Found {len(run_dirs)} partial result directories")
-    
+
     # Collect all results
     all_results = {}
     max_trials = 30
-    
+
     for run_dir in run_dirs:
         print(f"Processing: {run_dir.name}")
         # Find all init_count subdirectories
         init_dirs = sorted(run_dir.glob("init_*"))
-        
+
         for init_dir in init_dirs:
             init_count = int(init_dir.name.split("_")[1])
             if init_count not in all_results:
                 all_results[init_count] = []
-            
+
             # Load all campaign JSON files
             campaign_files = sorted(init_dir.glob("campaign_*.json"))
             for campaign_file in campaign_files:
-                with open(campaign_file, 'r') as f:
+                with open(campaign_file, "r") as f:
                     campaign_data = json.load(f)
                     all_results[init_count].append(campaign_data)
-    
+
     print(f"\nCollected results for {len(all_results)} init_counts")
     for init_count in sorted(all_results.keys()):
         print(f"  init_count={init_count}: {len(all_results[init_count])} campaigns")
-    
+
     # Create output directory for combined results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}"
+    output_dir = (
+        Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate budget analysis
     print("\n=== Analyzing combined results ===")
     budget_analysis = analyze_budget_truncation(all_results, max_trials)
-    
+
     # Save comprehensive results
     results_path = output_dir / "exhaustive_evaluation_results.json"
     with open(results_path, "w") as f:
@@ -1014,7 +1019,9 @@ def combine_parallel_results(partial_results_dir):
                 "budget_analysis": budget_analysis,
                 "parameters": {
                     "init_counts": sorted(all_results.keys()),
-                    "num_repeats": len(all_results[list(all_results.keys())[0]]) if all_results else 0,
+                    "num_repeats": (
+                        len(all_results[list(all_results.keys())[0]]) if all_results else 0
+                    ),
                     "max_trials": max_trials,
                 },
             },
@@ -1022,7 +1029,7 @@ def combine_parallel_results(partial_results_dir):
             indent=2,
         )
     print(f"Saved combined results: {results_path}")
-    
+
     # Generate final plots
     print("\n=== Generating final plots ===")
     try:
@@ -1030,18 +1037,98 @@ def combine_parallel_results(partial_results_dir):
             budget_analysis, output_dir, sorted(all_results.keys())
         )
         print(f"Generated sanity check plots: {sanity_plot_path}")
-        
-        convergence_plot_path = create_convergence_plots(
-            all_results, output_dir, max_trials
-        )
+
+        convergence_plot_path = create_convergence_plots(all_results, output_dir, max_trials)
         print(f"Generated convergence plots: {convergence_plot_path}")
     except Exception as e:
         print(f"Error generating plots: {e}")
         import traceback
+
         traceback.print_exc()
-    
-    print(f"\n=== Combined Results Complete ===")
+
+    print("\n=== Combined Results Complete ===")
     print(f"Output directory: {output_dir}")
+
+
+def create_convergence_plots(all_results, output_dir, max_trials):
+    """Create convergence plots from parallel campaign results."""
+    # Extract data for plotting
+    init_counts = sorted(all_results.keys())
+
+    # Prepare data for plotting
+    final_performances = []
+    convergence_data = {}
+
+    for init_count in init_counts:
+        repeats = all_results[init_count]
+        final_values = []
+
+        # Store convergence curves for each repeat
+        convergence_data[init_count] = []
+
+        for repeat_data in repeats:
+            if "best_values" in repeat_data:
+                best_values = repeat_data["best_values"]
+                final_values.append(best_values[-1])
+                convergence_data[init_count].append(best_values)
+
+        if final_values:
+            final_performances.append((init_count, np.mean(final_values), np.std(final_values)))
+
+    # Create convergence curves plot
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+    # Left plot: Convergence curves for selected init counts
+    selected_inits = [2, 5, 10, 15, 20, 25, 30]
+    colors = plt.cm.viridis(np.linspace(0, 1, len(selected_inits)))
+
+    for i, init_count in enumerate(selected_inits):
+        if init_count in convergence_data:
+            curves = convergence_data[init_count]
+            if curves:
+                # Calculate mean and std across repeats
+                min_length = min(len(curve) for curve in curves)
+                truncated_curves = [curve[:min_length] for curve in curves]
+                mean_curve = np.mean(truncated_curves, axis=0)
+                std_curve = np.std(truncated_curves, axis=0)
+
+                trials = range(1, min_length + 1)
+                ax1.plot(
+                    trials, mean_curve, color=colors[i], linewidth=2, label=f"Init {init_count}"
+                )
+                ax1.fill_between(
+                    trials,
+                    mean_curve - std_curve,
+                    mean_curve + std_curve,
+                    color=colors[i],
+                    alpha=0.2,
+                )
+
+    ax1.set_xlabel("Trial Number")
+    ax1.set_ylabel("Best Function Value")
+    ax1.set_title("Convergence Curves by Initialization Count")
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+    ax1.set_yscale("log")
+
+    # Right plot: Final performance vs init count
+    if final_performances:
+        init_vals, means, stds = zip(*final_performances)
+        ax2.errorbar(init_vals, means, yerr=stds, fmt="o-", capsize=5, capthick=2)
+        ax2.set_xlabel("Number of Initialization Points")
+        ax2.set_ylabel("Final Best Function Value")
+        ax2.set_title("Final Performance vs Initialization Count")
+        ax2.grid(True, alpha=0.3)
+        ax2.set_yscale("log")
+
+    plt.tight_layout()
+
+    # Save convergence plots
+    convergence_path = output_dir / "convergence_curves.png"
+    plt.savefig(str(convergence_path), dpi=150, bbox_inches="tight")
+    plt.close()
+
+    return convergence_path
 
 
 # These functions have been replaced with lightweight sanity_check_plots
@@ -1050,22 +1137,26 @@ def combine_parallel_results(partial_results_dir):
 def main():
     """Main execution function."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='Run Branin benchmark campaigns')
-    parser.add_argument('--init-range', type=int, help='Init range ID for parallel execution (1-15)')
-    parser.add_argument('--combine-results', type=str, help='Path to partial results directory to combine')
-    parser.add_argument('--num-repeats', type=int, help='Number of repeats per init count')
+
+    parser = argparse.ArgumentParser(description="Run Branin benchmark campaigns")
+    parser.add_argument(
+        "--init-range", type=int, help="Init range ID for parallel execution (1-15)"
+    )
+    parser.add_argument(
+        "--combine-results", type=str, help="Path to partial results directory to combine"
+    )
+    parser.add_argument("--num-repeats", type=int, help="Number of repeats per init count")
     args = parser.parse_args()
-    
+
     # Check if we're in combine mode
     if args.combine_results:
         combine_parallel_results(args.combine_results)
         return
-    
+
     # Check if running in smoke test mode
     smoke_test = os.environ.get("SMOKE_TEST", "").lower() in ("1", "true", "yes")
     parallel_mode = os.environ.get("PARALLEL_MODE", "").lower() in ("1", "true", "yes")
-    
+
     if smoke_test:
         print("=== SMOKE TEST MODE: Branin Evaluation ===")
         print("Running minimal test for validation")
@@ -1100,7 +1191,8 @@ def main():
         print()
         # Full evaluation parameters
         init_counts = range(2, 31)  # 2 to 30 initialization points
-        num_repeats = args.num_repeats if args.num_repeats else 5  # Number of repeat campaigns per init count
+        # Number of repeat campaigns per init count
+        num_repeats = args.num_repeats if args.num_repeats else 5
         max_trials = 30  # Run all campaigns to 30 trials
         base_suffix = "branin_exhaustive_evaluation_results"
         log_suffix = "run"
@@ -1113,11 +1205,16 @@ def main():
 
     # Setup logging (separate from results)
     logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}")
-    logger.info(f"=== Starting {'Smoke Test' if smoke_test else 'Exhaustive'} Branin Evaluation ===")
+    logger.info(
+        f"=== Starting {'Smoke Test' if smoke_test else 'Exhaustive'} Branin Evaluation ==="
+    )
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Logs directory: {logs_dir}")
     if smoke_test:
-        logger.info(f"SMOKE TEST MODE: init_counts={list(init_counts)}, repeats={num_repeats}, trials={max_trials}")
+        logger.info(
+            f"SMOKE TEST MODE: init_counts={list(init_counts)}, "
+            f"repeats={num_repeats}, trials={max_trials}"
+        )
 
     # Storage for all results
     all_results = {}  # init_count -> list of campaign results
@@ -1138,7 +1235,7 @@ def main():
                 # Generate unique seed for this campaign using hash of campaign_id
                 # This ensures reproducibility while giving different seeds to each repeat
                 seed = hash(f"{init_count}_{repeat_id}_{timestamp}") % (2**31)
-                
+
                 campaign_results = run_single_campaign(
                     campaign_id, num_trials=max_trials, num_init_trials=init_count, seed=seed
                 )
