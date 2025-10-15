@@ -276,10 +276,23 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
         return None
 
 
-def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
-    """Run a single optimization campaign with metrics collection and return results."""
+def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None):
+    """Run a single optimization campaign with metrics collection and return results.
+    
+    Args:
+        campaign_id: Unique identifier for this campaign
+        num_trials: Total number of optimization trials to run
+        num_init_trials: Number of initial Sobol trials before switching to GP
+        seed: Random seed for reproducibility. If None, uses default seeding.
+    """
     logger = logging.getLogger("branin_evaluation")
-    logger.info(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials})...")
+    logger.info(f"Starting campaign {campaign_id} (init={num_init_trials}, trials={num_trials}, seed={seed})...")
+
+    # Set random seeds for reproducibility
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        logger.info(f"  Set random seeds: torch={seed}, numpy={seed}")
 
     # Create main ax client for optimization with proper generation strategy
     # Use Sobol for initialization, then GPEI
@@ -289,6 +302,7 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
                 model=Models.SOBOL,
                 num_trials=num_init_trials,
                 min_trials_observed=num_init_trials,
+                model_kwargs={"seed": seed} if seed is not None else {},
             ),
             GenerationStep(
                 model=Models.BOTORCH_MODULAR,
@@ -297,7 +311,7 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
         ]
     )
 
-    ax_client = AxClient(generation_strategy=gs, verbose_logging=False)
+    ax_client = AxClient(generation_strategy=gs, verbose_logging=False, random_seed=seed)
     ax_client.create_experiment(
         parameters=[
             {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
@@ -316,7 +330,7 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5):
                 )
             ]
         )
-        ax_client_cv = AxClient(generation_strategy=gs_cv, verbose_logging=False)
+        ax_client_cv = AxClient(generation_strategy=gs_cv, verbose_logging=False, random_seed=seed)
         ax_client_cv.create_experiment(
             parameters=[
                 {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
@@ -981,8 +995,12 @@ def main():
         for repeat_id in range(1, num_repeats + 1):
             try:
                 campaign_id = f"{init_count}_{repeat_id}"
+                # Generate unique seed for this campaign using hash of campaign_id
+                # This ensures reproducibility while giving different seeds to each repeat
+                seed = hash(f"{init_count}_{repeat_id}_{timestamp}") % (2**31)
+                
                 campaign_results = run_single_campaign(
-                    campaign_id, num_trials=max_trials, num_init_trials=init_count
+                    campaign_id, num_trials=max_trials, num_init_trials=init_count, seed=seed
                 )
                 init_campaigns.append(campaign_results)
 
