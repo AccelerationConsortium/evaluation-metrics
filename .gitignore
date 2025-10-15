@@ -92,3 +92,10 @@ scripts/branin_evaluation_logs/
 !scripts/branin_exhaustive_evaluation_results/**/convergence_curves.png
 !scripts/branin_exhaustive_evaluation_results/**/sanity_check_plots.png
 !scripts/branin_exhaustive_evaluation_results/**/exhaustive_evaluation_results.json
+
+# Demonstration results (generated data and plots)
+scripts/bo_benchmarks/demonstrations/cv_plots/
+scripts/bo_benchmarks/demonstrations/*.html
+scripts/bo_benchmarks/demonstrations/*.png
+scripts/bo_benchmarks/demonstrations/*.json
+scripts/bo_benchmarks/demonstrations/*.gif
