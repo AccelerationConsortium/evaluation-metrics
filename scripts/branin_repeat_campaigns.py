@@ -950,13 +950,121 @@ def create_composite_plot(all_campaigns, output_dir):
     return composite_path
 
 
+def combine_parallel_results(partial_results_dir):
+    """Combine partial results from parallel execution and generate final analysis.
+    
+    Args:
+        partial_results_dir: Path to directory containing partial results from parallel jobs
+    """
+    print(f"=== Combining Parallel Results ===")
+    print(f"Reading from: {partial_results_dir}")
+    
+    partial_dir = Path(partial_results_dir)
+    if not partial_dir.exists():
+        print(f"ERROR: Directory {partial_results_dir} does not exist")
+        return
+    
+    # Find all run directories
+    run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_parallel_*"))
+    if not run_dirs:
+        print(f"ERROR: No partial result directories found in {partial_results_dir}")
+        return
+    
+    print(f"Found {len(run_dirs)} partial result directories")
+    
+    # Collect all results
+    all_results = {}
+    max_trials = 30
+    
+    for run_dir in run_dirs:
+        print(f"Processing: {run_dir.name}")
+        # Find all init_count subdirectories
+        init_dirs = sorted(run_dir.glob("init_*"))
+        
+        for init_dir in init_dirs:
+            init_count = int(init_dir.name.split("_")[1])
+            if init_count not in all_results:
+                all_results[init_count] = []
+            
+            # Load all campaign JSON files
+            campaign_files = sorted(init_dir.glob("campaign_*.json"))
+            for campaign_file in campaign_files:
+                with open(campaign_file, 'r') as f:
+                    campaign_data = json.load(f)
+                    all_results[init_count].append(campaign_data)
+    
+    print(f"\nCollected results for {len(all_results)} init_counts")
+    for init_count in sorted(all_results.keys()):
+        print(f"  init_count={init_count}: {len(all_results[init_count])} campaigns")
+    
+    # Create output directory for combined results
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate budget analysis
+    print("\n=== Analyzing combined results ===")
+    budget_analysis = analyze_budget_truncation(all_results, max_trials)
+    
+    # Save comprehensive results
+    results_path = output_dir / "exhaustive_evaluation_results.json"
+    with open(results_path, "w") as f:
+        json.dump(
+            {
+                "budget_analysis": budget_analysis,
+                "parameters": {
+                    "init_counts": sorted(all_results.keys()),
+                    "num_repeats": len(all_results[list(all_results.keys())[0]]) if all_results else 0,
+                    "max_trials": max_trials,
+                },
+            },
+            f,
+            indent=2,
+        )
+    print(f"Saved combined results: {results_path}")
+    
+    # Generate final plots
+    print("\n=== Generating final plots ===")
+    try:
+        sanity_plot_path = create_sanity_check_plots(
+            budget_analysis, output_dir, sorted(all_results.keys())
+        )
+        print(f"Generated sanity check plots: {sanity_plot_path}")
+        
+        convergence_plot_path = create_convergence_plots(
+            all_results, output_dir, max_trials
+        )
+        print(f"Generated convergence plots: {convergence_plot_path}")
+    except Exception as e:
+        print(f"Error generating plots: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print(f"\n=== Combined Results Complete ===")
+    print(f"Output directory: {output_dir}")
+
+
 # These functions have been replaced with lightweight sanity_check_plots
 
 
 def main():
     """Main execution function."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Run Branin benchmark campaigns')
+    parser.add_argument('--init-range', type=int, help='Init range ID for parallel execution (1-15)')
+    parser.add_argument('--combine-results', type=str, help='Path to partial results directory to combine')
+    parser.add_argument('--num-repeats', type=int, help='Number of repeats per init count')
+    args = parser.parse_args()
+    
+    # Check if we're in combine mode
+    if args.combine_results:
+        combine_parallel_results(args.combine_results)
+        return
+    
     # Check if running in smoke test mode
     smoke_test = os.environ.get("SMOKE_TEST", "").lower() in ("1", "true", "yes")
+    parallel_mode = os.environ.get("PARALLEL_MODE", "").lower() in ("1", "true", "yes")
     
     if smoke_test:
         print("=== SMOKE TEST MODE: Branin Evaluation ===")
@@ -968,6 +1076,21 @@ def main():
         max_trials = 5  # Just 5 trials
         base_suffix = "smoke_test_results"
         log_suffix = "smoke_test"
+    elif parallel_mode and args.init_range:
+        print(f"=== PARALLEL MODE: Branin Evaluation - Range {args.init_range} ===")
+        # Split 29 init_counts (2-30) into 15 ranges (~2 init counts per range)
+        all_init_counts = list(range(2, 31))
+        init_per_range = len(all_init_counts) // 15 + (1 if len(all_init_counts) % 15 else 0)
+        start_idx = (args.init_range - 1) * init_per_range
+        end_idx = min(start_idx + init_per_range, len(all_init_counts))
+        init_counts = all_init_counts[start_idx:end_idx]
+        print(f"Processing init_counts: {init_counts}")
+        print()
+        # Parallel evaluation parameters
+        num_repeats = args.num_repeats if args.num_repeats else 5
+        max_trials = 30
+        base_suffix = "branin_exhaustive_evaluation_results"
+        log_suffix = f"run_parallel_{args.init_range}"
     else:
         print("=== Exhaustive Branin Evaluation: Init Counts 2-30 ===")
         print(
@@ -977,7 +1100,7 @@ def main():
         print()
         # Full evaluation parameters
         init_counts = range(2, 31)  # 2 to 30 initialization points
-        num_repeats = 5  # Number of repeat campaigns per init count
+        num_repeats = args.num_repeats if args.num_repeats else 5  # Number of repeat campaigns per init count
         max_trials = 30  # Run all campaigns to 30 trials
         base_suffix = "branin_exhaustive_evaluation_results"
         log_suffix = "run"

@@ -60,7 +60,13 @@ jobs:
   full-test:
     needs: smoke-test
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours
+    timeout-minutes: 120  # 2 hours per job
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split 29 init_counts (2-30) across multiple jobs
+        # Each job handles a subset of init_counts
+        init_range: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     
     steps:
       - name: Checkout repository
@@ -77,25 +83,68 @@ jobs:
           PIP_TIMEOUT: 600
           PIP_RETRIES: 2
       
-      - name: Run full evaluation
+      - name: Run parallelized evaluation
         run: |
           cd scripts
-          uv run python branin_repeat_campaigns.py
+          uv run python branin_repeat_campaigns.py --init-range ${{ matrix.init_range }}
+        env:
+          PARALLEL_MODE: "1"
+          INIT_RANGE_ID: ${{ matrix.init_range }}
       
-      - name: Upload full test results
+      - name: Upload partial results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: full-test-results
+          name: partial-results-${{ matrix.init_range }}
           path: |
             scripts/branin_exhaustive_evaluation_results/
           retention-days: 30
       
-      - name: Upload full test logs
+      - name: Upload partial logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: full-test-logs
+          name: partial-logs-${{ matrix.init_range }}
           path: |
             scripts/branin_evaluation_logs/
           retention-days: 30
+  
+  combine-results:
+    needs: full-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup
+      
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install "ax-platform==0.5.0" torch gpcheck scikit-learn scipy imageio pillow matplotlib plotly
+        env:
+          PIP_TIMEOUT: 600
+          PIP_RETRIES: 2
+      
+      - name: Download all partial results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: partial-results-*
+          path: partial-results/
+          merge-multiple: true
+      
+      - name: Combine results and generate final plots
+        run: |
+          cd scripts
+          uv run python branin_repeat_campaigns.py --combine-results ../partial-results/
+      
+      - name: Upload combined results
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-results-combined
+          path: |
+            scripts/branin_exhaustive_evaluation_results/
+          retention-days: 90
