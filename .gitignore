@@ -83,3 +83,12 @@ play_*.py
 # Smoke test results (temporary test outputs)
 scripts/smoke_test_results/
 scripts/smoke_test_logs/
+
+# Branin evaluation results (keep only composite/summary plots)
+scripts/branin_exhaustive_evaluation_results/
+scripts/branin_repeat_campaign_results/
+scripts/branin_evaluation_logs/
+# Keep composite plots
+!scripts/branin_exhaustive_evaluation_results/**/convergence_curves.png
+!scripts/branin_exhaustive_evaluation_results/**/sanity_check_plots.png
+!scripts/branin_exhaustive_evaluation_results/**/exhaustive_evaluation_results.json
