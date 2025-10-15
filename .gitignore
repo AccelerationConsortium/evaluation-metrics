@@ -79,3 +79,7 @@ play_*.py
 *.pkl
 *.out
 *.err
+
+# Smoke test results (temporary test outputs)
+scripts/smoke_test_results/
+scripts/smoke_test_logs/
