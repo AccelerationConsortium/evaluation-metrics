@@ -7,10 +7,10 @@ on:
     paths:
       - 'scripts/branin_repeat_campaigns.py'
       - '.github/workflows/branin_campaigns_smoke_test.yaml'
-  pull_request:
-    paths:
-      - 'scripts/branin_repeat_campaigns.py'
-      - '.github/workflows/branin_campaigns_smoke_test.yaml'
+  # pull_request:
+  #   paths:
+  #     - 'scripts/branin_repeat_campaigns.py'
+  #     - '.github/workflows/branin_campaigns_smoke_test.yaml'
 
 jobs:
   smoke-test:
