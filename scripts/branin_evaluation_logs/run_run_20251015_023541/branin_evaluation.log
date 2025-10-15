@@ -1,0 +1,16 @@
+2025-10-15 02:35:41 - INFO - === Starting Exhaustive Branin Evaluation ===
+2025-10-15 02:35:41 - INFO - Output directory: /home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_exhaustive_evaluation_results/run_20251015_023541
+2025-10-15 02:35:41 - INFO - Logs directory: /home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_evaluation_logs/run_run_20251015_023541
+2025-10-15 02:35:41 - INFO - 
+=== Testing 2 initialization points ===
+2025-10-15 02:35:41 - INFO - Starting campaign 2_1 (init=2, trials=30, seed=176693511)...
+2025-10-15 02:35:41 - INFO -   Set random seeds: torch=176693511, numpy=176693511
+2025-10-15 02:35:41 - INFO -   Campaign 2_1: Trial 0, Current: 21.696497, Best: 21.696497
+2025-10-15 02:36:02 - INFO -   Campaign 2_1: Trial 10, Current: 79.889888, Best: 0.434555
+2025-10-15 02:36:41 - INFO -   Campaign 2_1: Trial 20, Current: 0.627962, Best: 0.434555
+2025-10-15 02:37:48 - INFO - Campaign 2_1 completed. Final best: 0.400820
+2025-10-15 02:37:48 - INFO - Campaign 2_1: Final best = 0.400820
+2025-10-15 02:37:48 - INFO - Saved campaign data: /home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_exhaustive_evaluation_results/run_20251015_023541/init_2/campaign_2_1.json
+2025-10-15 02:37:48 - INFO - Starting campaign 2_2 (init=2, trials=30, seed=2054908505)...
+2025-10-15 02:37:48 - INFO -   Set random seeds: torch=2054908505, numpy=2054908505
+2025-10-15 02:37:48 - INFO -   Campaign 2_2: Trial 0, Current: 40.971902, Best: 40.971902
