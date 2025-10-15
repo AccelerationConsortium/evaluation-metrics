@@ -955,29 +955,46 @@ def create_composite_plot(all_campaigns, output_dir):
 
 def main():
     """Main execution function."""
-    print("=== Exhaustive Branin Evaluation: Init Counts 2-30 ===")
-    print(
-        "This will run campaigns with different initialization counts "
-        "and evaluate at all budget levels"
-    )
-    print()
+    # Check if running in smoke test mode
+    smoke_test = os.environ.get("SMOKE_TEST", "").lower() in ("1", "true", "yes")
+    
+    if smoke_test:
+        print("=== SMOKE TEST MODE: Branin Evaluation ===")
+        print("Running minimal test for validation")
+        print()
+        # Smoke test parameters
+        init_counts = [2, 5]  # Just 2 init counts
+        num_repeats = 2  # Just 2 repeats
+        max_trials = 5  # Just 5 trials
+        base_suffix = "smoke_test_results"
+        log_suffix = "smoke_test"
+    else:
+        print("=== Exhaustive Branin Evaluation: Init Counts 2-30 ===")
+        print(
+            "This will run campaigns with different initialization counts "
+            "and evaluate at all budget levels"
+        )
+        print()
+        # Full evaluation parameters
+        init_counts = range(2, 31)  # 2 to 30 initialization points
+        num_repeats = 10  # Number of repeat campaigns per init count
+        max_trials = 30  # Run all campaigns to 30 trials
+        base_suffix = "branin_exhaustive_evaluation_results"
+        log_suffix = "run"
 
     # Create timestamped run directory (preserve all previous runs)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_dir = Path(__file__).parent / "branin_exhaustive_evaluation_results"
+    base_dir = Path(__file__).parent / base_suffix
     output_dir = base_dir / f"run_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup logging (separate from results)
-    logger, logs_dir = setup_logging(timestamp)
-    logger.info("=== Starting Exhaustive Branin Evaluation ===")
+    logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}")
+    logger.info(f"=== Starting {'Smoke Test' if smoke_test else 'Exhaustive'} Branin Evaluation ===")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Logs directory: {logs_dir}")
-
-    # Parameters for exhaustive evaluation
-    init_counts = range(2, 31)  # 2 to 30 initialization points
-    num_repeats = 10  # Number of repeat campaigns per init count
-    max_trials = 30  # Run all campaigns to 30 trials
+    if smoke_test:
+        logger.info(f"SMOKE TEST MODE: init_counts={list(init_counts)}, repeats={num_repeats}, trials={max_trials}")
 
     # Storage for all results
     all_results = {}  # init_count -> list of campaign results
