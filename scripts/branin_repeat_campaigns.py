@@ -1232,9 +1232,10 @@ def main():
         for repeat_id in range(1, num_repeats + 1):
             try:
                 campaign_id = f"{init_count}_{repeat_id}"
-                # Generate unique seed for this campaign using hash of campaign_id
-                # This ensures reproducibility while giving different seeds to each repeat
-                seed = hash(f"{init_count}_{repeat_id}_{timestamp}") % (2**31)
+                # Generate unique seed for this campaign using base seed + campaign number offset
+                # Base seed of 42 ensures reproducibility while offset guarantees unique seeds per campaign
+                campaign_number = (init_count - 2) * num_repeats + repeat_id  # Sequential campaign number
+                seed = 42 + campaign_number
 
                 campaign_results = run_single_campaign(
                     campaign_id, num_trials=max_trials, num_init_trials=init_count, seed=seed
