@@ -1,0 +1,150 @@
+name: Branin Campaigns Test
+
+on:
+  push:
+    branches:
+      - copilot/fix-b407491a-3a77-40e0-a70b-35579e442c93
+    paths:
+      - 'scripts/branin_repeat_campaigns.py'
+      - '.github/workflows/branin_campaigns_smoke_test.yaml'
+  # pull_request:
+  #   paths:
+  #     - 'scripts/branin_repeat_campaigns.py'
+  #     - '.github/workflows/branin_campaigns_smoke_test.yaml'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup
+      
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install "ax-platform==0.5.0" torch gpcheck scikit-learn scipy imageio pillow matplotlib plotly
+        env:
+          PIP_TIMEOUT: 600
+          PIP_RETRIES: 2
+      
+      - name: Run smoke test
+        run: |
+          cd scripts
+          SMOKE_TEST=1 uv run python branin_repeat_campaigns.py
+        env:
+          SMOKE_TEST: "1"
+      
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: |
+            scripts/smoke_test_results/
+          retention-days: 7
+      
+      - name: Upload smoke test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-logs
+          path: |
+            scripts/branin_evaluation_logs/
+          retention-days: 7
+
+  full-test:
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours per job
+    strategy:
+      fail-fast: false
+      matrix:
+        # Split 29 init_counts (2-30) across multiple jobs
+        # Each job handles a subset of init_counts
+        init_range: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup
+      
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install "ax-platform==0.5.0" torch gpcheck scikit-learn scipy imageio pillow matplotlib plotly
+        env:
+          PIP_TIMEOUT: 600
+          PIP_RETRIES: 2
+      
+      - name: Run parallelized evaluation
+        run: |
+          cd scripts
+          uv run python branin_repeat_campaigns.py --init-range ${{ matrix.init_range }}
+        env:
+          PARALLEL_MODE: "1"
+          INIT_RANGE_ID: ${{ matrix.init_range }}
+      
+      - name: Upload partial results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: partial-results-${{ matrix.init_range }}
+          path: |
+            scripts/branin_exhaustive_evaluation_results/
+          retention-days: 30
+      
+      - name: Upload partial logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: partial-logs-${{ matrix.init_range }}
+          path: |
+            scripts/branin_evaluation_logs/
+          retention-days: 30
+  
+  combine-results:
+    needs: full-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup
+      
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install "ax-platform==0.5.0" torch gpcheck scikit-learn scipy imageio pillow matplotlib plotly
+        env:
+          PIP_TIMEOUT: 600
+          PIP_RETRIES: 2
+      
+      - name: Download all partial results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: partial-results-*
+          path: partial-results/
+          merge-multiple: true
+      
+      - name: Combine results and generate final plots
+        run: |
+          cd scripts
+          uv run python branin_repeat_campaigns.py --combine-results ../partial-results/
+      
+      - name: Upload combined results
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-results-combined
+          path: |
+            scripts/branin_exhaustive_evaluation_results/
+          retention-days: 90

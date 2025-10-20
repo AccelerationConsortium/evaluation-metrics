@@ -1,0 +1,1098 @@
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: Using Models.BOTORCH_MODULAR since there is at least one ordered parameter and there are no unordered categorical parameters.
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: Calculating the number of remaining initialization trials based on num_initialization_trials=None max_initialization_trials=None num_tunable_parameters=2 num_trials=None use_batch_trials=False
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: calculated num_initialization_trials=5
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: num_completed_initialization_trials=0 num_remaining_initialization_trials=5
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: `verbose`, `disable_progbar`, and `jit_compile` are not yet supported when using `choose_generation_strategy` with ModularBoTorchModel, dropping these arguments.
+[INFO 09-19 21:29:21] ax.modelbridge.dispatch_utils: Using Bayesian Optimization generation strategy: GenerationStrategy(name='Sobol+BoTorch', steps=[Sobol for 5 trials, BoTorch for subsequent trials]). Iterations after 5 will take longer to generate due to model-fitting.
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:29:21] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning: Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+  check_min_max_scaling(
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning: One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+  rank_tau = kendalltau(test_Y.squeeze().detach().cpu().numpy(), mean_pred.detach().cpu().numpy())[0]
+[INFO 09-19 21:29:22] ax.core.experiment: Attached custom parameterizations [{'x1': 4.933732, 'x2': 3.251824}] as trial 0.
+[INFO 09-19 21:29:22] ax.core.experiment: Attached custom parameterizations [{'x1': -1.730061, 'x2': 6.01255}] as trial 1.
+[INFO 09-19 21:29:22] ax.core.experiment: Attached custom parameterizations [{'x1': 1.464937, 'x2': 1.908558}] as trial 2.
+[INFO 09-19 21:29:22] ax.core.experiment: Attached custom parameterizations [{'x1': 9.066629, 'x2': 9.767931}] as trial 3.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:29:22] ax.core.experiment: Attached custom parameterizations [{'x1': 7.09039, 'x2': 0.520803}] as trial 5.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:24] ax.core.experiment: Attached custom parameterizations [{'x1': -5.0, 'x2': 2.136114}] as trial 7.
+[WARNING 09-19 21:29:25] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:25] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:25] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:25] ax.core.experiment: Attached custom parameterizations [{'x1': 1.202522, 'x2': 5.745944}] as trial 9.
+[WARNING 09-19 21:29:27] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:27] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:27] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:27] ax.core.experiment: Attached custom parameterizations [{'x1': 3.901625, 'x2': 0.519443}] as trial 11.
+[WARNING 09-19 21:29:29] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:29] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:29] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:29] ax.core.experiment: Attached custom parameterizations [{'x1': -2.198396, 'x2': 9.37165}] as trial 13.
+[WARNING 09-19 21:29:31] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:31] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:31] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:31] ax.core.experiment: Attached custom parameterizations [{'x1': 3.249163, 'x2': 0.0}] as trial 15.
+[WARNING 09-19 21:29:33] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:33] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:33] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:33] ax.core.experiment: Attached custom parameterizations [{'x1': -0.905416, 'x2': 10.0}] as trial 17.
+[WARNING 09-19 21:29:35] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:35] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:35] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:35] ax.core.experiment: Attached custom parameterizations [{'x1': -2.942585, 'x2': 10.0}] as trial 19.
+[WARNING 09-19 21:29:38] ax.modelbridge.cross_validation: Metric branin was unable to be reliably fit.
+[WARNING 09-19 21:29:38] ax.service.utils.best_point: Model fit is poor; falling back on raw data for best point.
+[WARNING 09-19 21:29:38] ax.service.utils.best_point: Model fit is poor and data on objective metric branin is noisy; interpret best points results carefully.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:38] ax.core.experiment: Attached custom parameterizations [{'x1': 3.004002, 'x2': 4.171064}] as trial 21.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:41] ax.core.experiment: Attached custom parameterizations [{'x1': -2.58006, 'x2': 10.0}] as trial 23.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:43] ax.core.experiment: Attached custom parameterizations [{'x1': 2.866446, 'x2': 10.0}] as trial 25.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:46] ax.core.experiment: Attached custom parameterizations [{'x1': 3.092565, 'x2': 2.502044}] as trial 27.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:53] ax.core.experiment: Attached custom parameterizations [{'x1': 3.375769, 'x2': 2.392042}] as trial 30.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:29:57] ax.core.experiment: Attached custom parameterizations [{'x1': 8.955657, 'x2': 2.603102}] as trial 32.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:03] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 3.347517}] as trial 34.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:07] ax.core.experiment: Attached custom parameterizations [{'x1': 9.523046, 'x2': 2.472626}] as trial 36.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:12] ax.core.experiment: Attached custom parameterizations [{'x1': 9.391011, 'x2': 3.289732}] as trial 38.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:17] ax.core.experiment: Attached custom parameterizations [{'x1': -3.103226, 'x2': 8.142547}] as trial 40.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:22] ax.core.experiment: Attached custom parameterizations [{'x1': -1.856924, 'x2': 0.0}] as trial 42.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:30] ax.core.experiment: Attached custom parameterizations [{'x1': 2.846943, 'x2': 2.732322}] as trial 44.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:36] ax.core.experiment: Attached custom parameterizations [{'x1': 9.465542, 'x2': 2.766869}] as trial 46.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:41] ax.core.experiment: Attached custom parameterizations [{'x1': 3.18214, 'x2': 2.141352}] as trial 48.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:47] ax.core.experiment: Attached custom parameterizations [{'x1': 9.276237, 'x2': 2.091816}] as trial 50.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:30:58] ax.core.experiment: Attached custom parameterizations [{'x1': 9.407579, 'x2': 2.524373}] as trial 52.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:11] ax.core.experiment: Attached custom parameterizations [{'x1': 3.222972, 'x2': 2.425011}] as trial 54.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: Using Models.BOTORCH_MODULAR since there is at least one ordered parameter and there are no unordered categorical parameters.
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: Calculating the number of remaining initialization trials based on num_initialization_trials=None max_initialization_trials=None num_tunable_parameters=2 num_trials=None use_batch_trials=False
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: calculated num_initialization_trials=5
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: num_completed_initialization_trials=0 num_remaining_initialization_trials=5
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: `verbose`, `disable_progbar`, and `jit_compile` are not yet supported when using `choose_generation_strategy` with ModularBoTorchModel, dropping these arguments.
+[INFO 09-19 21:31:23] ax.modelbridge.dispatch_utils: Using Bayesian Optimization generation strategy: GenerationStrategy(name='Sobol+BoTorch', steps=[Sobol for 5 trials, BoTorch for subsequent trials]). Iterations after 5 will take longer to generate due to model-fitting.
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:31:23] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:31:24] ax.core.experiment: Attached custom parameterizations [{'x1': -4.224991, 'x2': 5.515308}] as trial 0.
+[INFO 09-19 21:31:24] ax.core.experiment: Attached custom parameterizations [{'x1': 5.263785, 'x2': 3.816538}] as trial 1.
+[INFO 09-19 21:31:24] ax.core.experiment: Attached custom parameterizations [{'x1': 8.21532, 'x2': 9.271507}] as trial 2.
+[INFO 09-19 21:31:24] ax.core.experiment: Attached custom parameterizations [{'x1': -1.038594, 'x2': 0.072736}] as trial 3.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:31:24] ax.core.experiment: Attached custom parameterizations [{'x1': 1.822017, 'x2': 8.512722}] as trial 5.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:26] ax.core.experiment: Attached custom parameterizations [{'x1': 3.842708, 'x2': 1.867476}] as trial 7.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:28] ax.core.experiment: Attached custom parameterizations [{'x1': 3.492901, 'x2': 0.0}] as trial 9.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:31] ax.core.experiment: Attached custom parameterizations [{'x1': 4.041834, 'x2': 0.0}] as trial 11.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:35] ax.core.experiment: Attached custom parameterizations [{'x1': 3.494701, 'x2': 3.12927}] as trial 13.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:38] ax.core.experiment: Attached custom parameterizations [{'x1': 4.025359, 'x2': 10.0}] as trial 15.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:40] ax.core.experiment: Attached custom parameterizations [{'x1': 2.852739, 'x2': 2.351551}] as trial 17.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:48] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 3.51758}] as trial 20.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:52] ax.core.experiment: Attached custom parameterizations [{'x1': 8.95882, 'x2': 2.025507}] as trial 22.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:31:58] ax.core.experiment: Attached custom parameterizations [{'x1': 9.617302, 'x2': 2.500134}] as trial 24.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:03] ax.core.experiment: Attached custom parameterizations [{'x1': 7.779678, 'x2': 0.0}] as trial 26.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:08] ax.core.experiment: Attached custom parameterizations [{'x1': 3.179555, 'x2': 2.004653}] as trial 28.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:12] ax.core.experiment: Attached custom parameterizations [{'x1': 9.332317, 'x2': 2.759106}] as trial 30.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:16] ax.core.experiment: Attached custom parameterizations [{'x1': 2.930254, 'x2': 2.838924}] as trial 32.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:21] ax.core.experiment: Attached custom parameterizations [{'x1': -1.771533, 'x2': 10.0}] as trial 34.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:25] ax.core.experiment: Attached custom parameterizations [{'x1': -4.201637, 'x2': 10.0}] as trial 36.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:28] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 2.404946}] as trial 38.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:38] ax.core.experiment: Attached custom parameterizations [{'x1': 3.151104, 'x2': 2.355809}] as trial 40.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:46] ax.core.experiment: Attached custom parameterizations [{'x1': -0.535565, 'x2': 6.960796}] as trial 42.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:51] ax.core.experiment: Attached custom parameterizations [{'x1': 9.424091, 'x2': 2.414782}] as trial 44.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:32:56] ax.core.experiment: Attached custom parameterizations [{'x1': 9.449822, 'x2': 2.716719}] as trial 46.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:01] ax.core.experiment: Attached custom parameterizations [{'x1': 3.094969, 'x2': 2.214622}] as trial 48.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:14] ax.core.experiment: Attached custom parameterizations [{'x1': 3.185626, 'x2': 2.200955}] as trial 50.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:24] ax.core.experiment: Attached custom parameterizations [{'x1': 9.420679, 'x2': 2.576528}] as trial 52.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:36] ax.core.experiment: Attached custom parameterizations [{'x1': 9.404358, 'x2': 2.264089}] as trial 54.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: Using Models.BOTORCH_MODULAR since there is at least one ordered parameter and there are no unordered categorical parameters.
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: Calculating the number of remaining initialization trials based on num_initialization_trials=None max_initialization_trials=None num_tunable_parameters=2 num_trials=None use_batch_trials=False
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: calculated num_initialization_trials=5
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: num_completed_initialization_trials=0 num_remaining_initialization_trials=5
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: `verbose`, `disable_progbar`, and `jit_compile` are not yet supported when using `choose_generation_strategy` with ModularBoTorchModel, dropping these arguments.
+[INFO 09-19 21:33:51] ax.modelbridge.dispatch_utils: Using Bayesian Optimization generation strategy: GenerationStrategy(name='Sobol+BoTorch', steps=[Sobol for 5 trials, BoTorch for subsequent trials]). Iterations after 5 will take longer to generate due to model-fitting.
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:33:51] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:33:51] ax.core.experiment: Attached custom parameterizations [{'x1': -4.224991, 'x2': 5.515308}] as trial 0.
+[INFO 09-19 21:33:51] ax.core.experiment: Attached custom parameterizations [{'x1': 5.263785, 'x2': 3.816538}] as trial 1.
+[INFO 09-19 21:33:51] ax.core.experiment: Attached custom parameterizations [{'x1': 8.21532, 'x2': 9.271507}] as trial 2.
+[INFO 09-19 21:33:51] ax.core.experiment: Attached custom parameterizations [{'x1': -1.038594, 'x2': 0.072736}] as trial 3.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:33:52] ax.core.experiment: Attached custom parameterizations [{'x1': 1.822017, 'x2': 8.512722}] as trial 5.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:54] ax.core.experiment: Attached custom parameterizations [{'x1': 3.842708, 'x2': 1.867476}] as trial 7.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:57] ax.core.experiment: Attached custom parameterizations [{'x1': 3.492901, 'x2': 0.0}] as trial 9.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:33:59] ax.core.experiment: Attached custom parameterizations [{'x1': 4.041834, 'x2': 0.0}] as trial 11.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:03] ax.core.experiment: Attached custom parameterizations [{'x1': 3.494701, 'x2': 3.12927}] as trial 13.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:06] ax.core.experiment: Attached custom parameterizations [{'x1': 4.025359, 'x2': 10.0}] as trial 15.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:08] ax.core.experiment: Attached custom parameterizations [{'x1': 2.852739, 'x2': 2.351551}] as trial 17.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:16] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 3.51758}] as trial 20.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:21] ax.core.experiment: Attached custom parameterizations [{'x1': 8.95882, 'x2': 2.025507}] as trial 22.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:26] ax.core.experiment: Attached custom parameterizations [{'x1': 9.617302, 'x2': 2.500134}] as trial 24.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:31] ax.core.experiment: Attached custom parameterizations [{'x1': 7.779678, 'x2': 0.0}] as trial 26.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:37] ax.core.experiment: Attached custom parameterizations [{'x1': 3.179555, 'x2': 2.004653}] as trial 28.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:41] ax.core.experiment: Attached custom parameterizations [{'x1': 9.332317, 'x2': 2.759106}] as trial 30.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:45] ax.core.experiment: Attached custom parameterizations [{'x1': 2.930254, 'x2': 2.838924}] as trial 32.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:49] ax.core.experiment: Attached custom parameterizations [{'x1': -1.771533, 'x2': 10.0}] as trial 34.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:53] ax.core.experiment: Attached custom parameterizations [{'x1': -4.201637, 'x2': 10.0}] as trial 36.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:34:56] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 2.404946}] as trial 38.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:06] ax.core.experiment: Attached custom parameterizations [{'x1': 3.151104, 'x2': 2.355809}] as trial 40.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:15] ax.core.experiment: Attached custom parameterizations [{'x1': -0.535565, 'x2': 6.960796}] as trial 42.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:20] ax.core.experiment: Attached custom parameterizations [{'x1': 9.424091, 'x2': 2.414782}] as trial 44.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:24] ax.core.experiment: Attached custom parameterizations [{'x1': 9.449822, 'x2': 2.716719}] as trial 46.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:29] ax.core.experiment: Attached custom parameterizations [{'x1': 3.094969, 'x2': 2.214622}] as trial 48.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:42] ax.core.experiment: Attached custom parameterizations [{'x1': 3.185626, 'x2': 2.200955}] as trial 50.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:35:52] ax.core.experiment: Attached custom parameterizations [{'x1': 9.420679, 'x2': 2.576528}] as trial 52.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:03] ax.core.experiment: Attached custom parameterizations [{'x1': 9.404358, 'x2': 2.264089}] as trial 54.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: Using Models.BOTORCH_MODULAR since there is at least one ordered parameter and there are no unordered categorical parameters.
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: Calculating the number of remaining initialization trials based on num_initialization_trials=None max_initialization_trials=None num_tunable_parameters=2 num_trials=None use_batch_trials=False
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: calculated num_initialization_trials=5
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: num_completed_initialization_trials=0 num_remaining_initialization_trials=5
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: `verbose`, `disable_progbar`, and `jit_compile` are not yet supported when using `choose_generation_strategy` with ModularBoTorchModel, dropping these arguments.
+[INFO 09-19 21:36:18] ax.modelbridge.dispatch_utils: Using Bayesian Optimization generation strategy: GenerationStrategy(name='Sobol+BoTorch', steps=[Sobol for 5 trials, BoTorch for subsequent trials]). Iterations after 5 will take longer to generate due to model-fitting.
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:36:18] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:36:18] ax.core.experiment: Attached custom parameterizations [{'x1': -4.224991, 'x2': 5.515308}] as trial 0.
+[INFO 09-19 21:36:18] ax.core.experiment: Attached custom parameterizations [{'x1': 5.263785, 'x2': 3.816538}] as trial 1.
+[INFO 09-19 21:36:18] ax.core.experiment: Attached custom parameterizations [{'x1': 8.21532, 'x2': 9.271507}] as trial 2.
+[INFO 09-19 21:36:18] ax.core.experiment: Attached custom parameterizations [{'x1': -1.038594, 'x2': 0.072736}] as trial 3.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:36:19] ax.core.experiment: Attached custom parameterizations [{'x1': 1.822017, 'x2': 8.512722}] as trial 5.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:21] ax.core.experiment: Attached custom parameterizations [{'x1': 3.842708, 'x2': 1.867476}] as trial 7.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:23] ax.core.experiment: Attached custom parameterizations [{'x1': 3.492901, 'x2': 0.0}] as trial 9.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:26] ax.core.experiment: Attached custom parameterizations [{'x1': 4.041834, 'x2': 0.0}] as trial 11.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:29] ax.core.experiment: Attached custom parameterizations [{'x1': 3.494701, 'x2': 3.12927}] as trial 13.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:32] ax.core.experiment: Attached custom parameterizations [{'x1': 4.025359, 'x2': 10.0}] as trial 15.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:34] ax.core.experiment: Attached custom parameterizations [{'x1': 2.852739, 'x2': 2.351551}] as trial 17.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:42] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 3.51758}] as trial 20.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:46] ax.core.experiment: Attached custom parameterizations [{'x1': 8.95882, 'x2': 2.025507}] as trial 22.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:52] ax.core.experiment: Attached custom parameterizations [{'x1': 9.617302, 'x2': 2.500134}] as trial 24.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:36:57] ax.core.experiment: Attached custom parameterizations [{'x1': 7.779678, 'x2': 0.0}] as trial 26.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:03] ax.core.experiment: Attached custom parameterizations [{'x1': 3.179555, 'x2': 2.004653}] as trial 28.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:06] ax.core.experiment: Attached custom parameterizations [{'x1': 9.332317, 'x2': 2.759106}] as trial 30.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:10] ax.core.experiment: Attached custom parameterizations [{'x1': 2.930254, 'x2': 2.838924}] as trial 32.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:15] ax.core.experiment: Attached custom parameterizations [{'x1': -1.771533, 'x2': 10.0}] as trial 34.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:19] ax.core.experiment: Attached custom parameterizations [{'x1': -4.201637, 'x2': 10.0}] as trial 36.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:22] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 2.404946}] as trial 38.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:31] ax.core.experiment: Attached custom parameterizations [{'x1': 3.151104, 'x2': 2.355809}] as trial 40.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:40] ax.core.experiment: Attached custom parameterizations [{'x1': -0.535565, 'x2': 6.960796}] as trial 42.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/linear_operator/utils/cholesky.py:40: NumericalWarning:
+
+A not p.d., added jitter of 1.0e-08 to the diagonal
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:44] ax.core.experiment: Attached custom parameterizations [{'x1': 9.424091, 'x2': 2.414782}] as trial 44.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:49] ax.core.experiment: Attached custom parameterizations [{'x1': 9.449822, 'x2': 2.716719}] as trial 46.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:37:54] ax.core.experiment: Attached custom parameterizations [{'x1': 3.094969, 'x2': 2.214622}] as trial 48.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:06] ax.core.experiment: Attached custom parameterizations [{'x1': 3.185626, 'x2': 2.200955}] as trial 50.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:16] ax.core.experiment: Attached custom parameterizations [{'x1': 9.420679, 'x2': 2.576528}] as trial 52.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:27] ax.core.experiment: Attached custom parameterizations [{'x1': 9.404358, 'x2': 2.264089}] as trial 54.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: Using Models.BOTORCH_MODULAR since there is at least one ordered parameter and there are no unordered categorical parameters.
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: Calculating the number of remaining initialization trials based on num_initialization_trials=None max_initialization_trials=None num_tunable_parameters=2 num_trials=None use_batch_trials=False
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: calculated num_initialization_trials=5
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: num_completed_initialization_trials=0 num_remaining_initialization_trials=5
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: `verbose`, `disable_progbar`, and `jit_compile` are not yet supported when using `choose_generation_strategy` with ModularBoTorchModel, dropping these arguments.
+[INFO 09-19 21:38:42] ax.modelbridge.dispatch_utils: Using Bayesian Optimization generation strategy: GenerationStrategy(name='Sobol+BoTorch', steps=[Sobol for 5 trials, BoTorch for subsequent trials]). Iterations after 5 will take longer to generate due to model-fitting.
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x1. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Inferred value type of ParameterType.FLOAT for parameter x2. If that is not the expected value type, you can explicitly specify 'value_type' ('int', 'float', 'bool' or 'str') in parameter dict.
+[INFO 09-19 21:38:42] ax.service.utils.instantiation: Created search space: SearchSpace(parameters=[RangeParameter(name='x1', parameter_type=FLOAT, range=[-5.0, 10.0]), RangeParameter(name='x2', parameter_type=FLOAT, range=[0.0, 10.0])], parameter_constraints=[]).
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:38:42] ax.core.experiment: Attached custom parameterizations [{'x1': -4.224991, 'x2': 5.515308}] as trial 0.
+[INFO 09-19 21:38:42] ax.core.experiment: Attached custom parameterizations [{'x1': 5.263785, 'x2': 3.816538}] as trial 1.
+[INFO 09-19 21:38:42] ax.core.experiment: Attached custom parameterizations [{'x1': 8.21532, 'x2': 9.271507}] as trial 2.
+[INFO 09-19 21:38:42] ax.core.experiment: Attached custom parameterizations [{'x1': -1.038594, 'x2': 0.072736}] as trial 3.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/home/runner/work/evaluation-metrics/evaluation-metrics/scripts/branin_repeat_campaigns.py:204: SmallSampleWarning:
+
+One or more sample arguments is too small; all returned values will be NaN. See documentation for sample size requirements.
+
+[INFO 09-19 21:38:43] ax.core.experiment: Attached custom parameterizations [{'x1': 1.822017, 'x2': 8.512722}] as trial 5.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:45] ax.core.experiment: Attached custom parameterizations [{'x1': 3.842708, 'x2': 1.867476}] as trial 7.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:47] ax.core.experiment: Attached custom parameterizations [{'x1': 3.492901, 'x2': 0.0}] as trial 9.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:50] ax.core.experiment: Attached custom parameterizations [{'x1': 4.041834, 'x2': 0.0}] as trial 11.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:53] ax.core.experiment: Attached custom parameterizations [{'x1': 3.494701, 'x2': 3.12927}] as trial 13.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:56] ax.core.experiment: Attached custom parameterizations [{'x1': 4.025359, 'x2': 10.0}] as trial 15.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:38:58] ax.core.experiment: Attached custom parameterizations [{'x1': 2.852739, 'x2': 2.351551}] as trial 17.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:06] ax.core.experiment: Attached custom parameterizations [{'x1': 10.0, 'x2': 3.51758}] as trial 20.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed on the second try, after generating a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:11] ax.core.experiment: Attached custom parameterizations [{'x1': 8.95882, 'x2': 2.025507}] as trial 22.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:16] ax.core.experiment: Attached custom parameterizations [{'x1': 9.617302, 'x2': 2.500134}] as trial 24.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:21] ax.core.experiment: Attached custom parameterizations [{'x1': 7.779678, 'x2': 0.0}] as trial 26.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/optim/optimize.py:652: RuntimeWarning:
+
+Optimization failed in `gen_candidates_scipy` with the following warning(s):
+[NumericalWarning('A not p.d., added jitter of 1.0e-08 to the diagonal'), OptimizationWarning('Optimization failed within `scipy.optimize.minimize` with status 2 and message ABNORMAL: .')]
+Trying again with a new set of initial conditions.
+
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:27] ax.core.experiment: Attached custom parameterizations [{'x1': 3.179555, 'x2': 2.004653}] as trial 28.
+/opt/hostedtoolcache/Python/3.12.11/x64/lib/python3.12/site-packages/botorch/models/utils/assorted.py:264: InputDataWarning:
+
+Data (input features) is not contained to the unit cube. Please consider min-max scaling the input data.
+
+[INFO 09-19 21:39:31] ax.core.experiment: Attached custom parameterizations [{'x1': 9.332317, 'x2': 2.759106}] as trial 30.
