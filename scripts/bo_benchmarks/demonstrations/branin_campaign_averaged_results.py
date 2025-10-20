@@ -648,7 +648,9 @@ if __name__ == "__main__":
         if interval_score_values:
             print(f"Averaged GP Interval Score values: {interval_score_values}")
         if ax_cv_interval_score_values:
-            print(f"Averaged Ax CV Interval Score values: {ax_cv_interval_score_values}")
+            print(
+                f"Averaged Ax CV Interval Score values: {ax_cv_interval_score_values}"
+            )
         print(f"Averaged Importance Std values: {imp_std_values}")
 
     else:

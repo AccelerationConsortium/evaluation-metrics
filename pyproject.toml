@@ -26,6 +26,7 @@ dev = [
     "ruff>=0.12.2",
     "pytest-cov>=6.2.1",
     "jupytext>=1.17.2",
+    "mypy>=1.18.2",
 ]
 
 [build-system]
