@@ -1,6 +1,3 @@
-Use `push` on any branch and add `workflow_dispatch`. I also let manual runs override the matrix via an input.
-
-```yaml
 name: Branin Campaigns Test
 
 on:
@@ -151,4 +148,3 @@ jobs:
           path: |
             scripts/branin_exhaustive_evaluation_results/
           retention-days: 90
-```
