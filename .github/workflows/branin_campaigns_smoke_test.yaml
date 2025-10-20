@@ -1,16 +1,19 @@
+Use `push` on any branch and add `workflow_dispatch`. I also let manual runs override the matrix via an input.
+
+```yaml
 name: Branin Campaigns Test
 
 on:
   push:
-    branches:
-      - copilot/fix-b407491a-3a77-40e0-a70b-35579e442c93
     paths:
       - 'scripts/branin_repeat_campaigns.py'
       - '.github/workflows/branin_campaigns_smoke_test.yaml'
-  # pull_request:
-  #   paths:
-  #     - 'scripts/branin_repeat_campaigns.py'
-  #     - '.github/workflows/branin_campaigns_smoke_test.yaml'
+  workflow_dispatch:
+    inputs:
+      init_range:
+        description: "Optional: run only a single init_range (e.g., 7). Leave blank to run full matrix."
+        required: false
+        default: ""
 
 jobs:
   smoke-test:
@@ -60,13 +63,13 @@ jobs:
   full-test:
     needs: smoke-test
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours per job
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        # Split 29 init_counts (2-30) across multiple jobs
-        # Each job handles a subset of init_counts
-        init_range: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        # If manually triggered with an init_range input, run just that one.
+        # Otherwise run the full set.
+        init_range: ${{ fromJSON( (github.event_name == 'workflow_dispatch' && github.event.inputs.init_range != '') && format('[{0}]', github.event.inputs.init_range) || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]' ) }}
     
     steps:
       - name: Checkout repository
@@ -148,3 +151,4 @@ jobs:
           path: |
             scripts/branin_exhaustive_evaluation_results/
           retention-days: 90
+```
