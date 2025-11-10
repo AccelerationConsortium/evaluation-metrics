@@ -1143,13 +1143,21 @@ def combine_parallel_results(partial_results_dir):
 
 
 def create_convergence_plots(all_results, output_dir, max_trials):
-    """Create convergence plots from parallel campaign results."""
+    """Create convergence plots from parallel campaign results.
+    
+    Now includes both absolute value plots and normalized/regret plots to handle
+    the fact that different init_counts start from the same initial points.
+    """
     # Extract data for plotting
     init_counts = sorted(all_results.keys())
 
     # Prepare data for plotting
     final_performances = []
     convergence_data = {}
+    regret_data = {}  # Store regret (value - optimal) for each curve
+
+    # Branin global optimum is approximately 0.397887
+    branin_optimal = 0.397887
 
     for init_count in init_counts:
         repeats = all_results[init_count]
@@ -1157,20 +1165,28 @@ def create_convergence_plots(all_results, output_dir, max_trials):
 
         # Store convergence curves for each repeat
         convergence_data[init_count] = []
+        regret_data[init_count] = []
 
         for repeat_data in repeats:
             if "best_values" in repeat_data:
                 best_values = repeat_data["best_values"]
                 final_values.append(best_values[-1])
                 convergence_data[init_count].append(best_values)
+                
+                # Calculate regret (distance from optimum)
+                regret = [val - branin_optimal for val in best_values]
+                regret_data[init_count].append(regret)
 
         if final_values:
             final_performances.append((init_count, np.mean(final_values), np.std(final_values)))
 
-    # Create convergence curves plot
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    # Create THREE subplots: convergence curves (absolute), regret curves, and final performance
+    fig = plt.figure(figsize=(18, 6))
+    ax1 = plt.subplot(1, 3, 1)
+    ax2 = plt.subplot(1, 3, 2)
+    ax3 = plt.subplot(1, 3, 3)
 
-    # Left plot: Convergence curves for selected init counts
+    # Left plot: Convergence curves for selected init counts (absolute values)
     selected_inits = [2, 5, 10, 15, 20, 25, 30]
     colors = plt.cm.viridis(np.linspace(0, 1, len(selected_inits)))
 
@@ -1203,15 +1219,45 @@ def create_convergence_plots(all_results, output_dir, max_trials):
     ax1.legend()
     ax1.set_yscale("log")
 
+    # Middle plot: Regret curves (normalized, removes effect of different starting points)
+    for i, init_count in enumerate(selected_inits):
+        if init_count in regret_data:
+            regrets = regret_data[init_count]
+            if regrets:
+                # Calculate mean and std across repeats
+                min_length = min(len(regret) for regret in regrets)
+                truncated_regrets = [regret[:min_length] for regret in regrets]
+                mean_regret = np.mean(truncated_regrets, axis=0)
+                std_regret = np.std(truncated_regrets, axis=0)
+
+                trials = range(1, min_length + 1)
+                ax2.plot(
+                    trials, mean_regret, color=colors[i], linewidth=2, label=f"Init {init_count}"
+                )
+                ax2.fill_between(
+                    trials,
+                    mean_regret - std_regret,
+                    mean_regret + std_regret,
+                    color=colors[i],
+                    alpha=0.2,
+                )
+
+    ax2.set_xlabel("Trial Number")
+    ax2.set_ylabel("Regret (Best - Optimal)")
+    ax2.set_title("Regret Curves by Initialization Count")
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+    ax2.set_yscale("log")
+
     # Right plot: Final performance vs init count
     if final_performances:
         init_vals, means, stds = zip(*final_performances)
-        ax2.errorbar(init_vals, means, yerr=stds, fmt="o-", capsize=5, capthick=2)
-        ax2.set_xlabel("Number of Initialization Points")
-        ax2.set_ylabel("Final Best Function Value")
-        ax2.set_title("Final Performance vs Initialization Count")
-        ax2.grid(True, alpha=0.3)
-        ax2.set_yscale("log")
+        ax3.errorbar(init_vals, means, yerr=stds, fmt="o-", capsize=5, capthick=2)
+        ax3.set_xlabel("Number of Initialization Points")
+        ax3.set_ylabel("Final Best Function Value")
+        ax3.set_title("Final Performance vs Initialization Count")
+        ax3.grid(True, alpha=0.3)
+        ax3.set_yscale("log")
 
     plt.tight_layout()
 

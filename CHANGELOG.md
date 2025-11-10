@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
   - Keeps GP seed consistent within each repeat for fair comparison
 - Modified `run_single_campaign` to accept pre-generated initialization points via `init_points` parameter
 - Added `generate_sobol_points` function to create reusable Sobol sequences using Ax's `get_sobol`
+- Added regret plots to convergence visualization to remove vertical offsets caused by different starting points
+  - Regret is computed as (best_value - optimal_value) where optimal Branin value ≈ 0.397887
+  - Three-panel plot now shows: absolute convergence, regret convergence, and final performance vs init count
 
 ## [0.1.1] - 2025-08-29
 
