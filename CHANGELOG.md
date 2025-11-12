@@ -18,6 +18,10 @@ All notable changes to this project will be documented in this file.
 - Fixed parallel results combination in workflow: updated `combine_parallel_results` to handle merged artifact directory structure
   - Now checks for both nested (`branin_exhaustive_evaluation_results/run_*`) and flattened (`run_*`) directory patterns
   - Addresses issue where combined artifacts contained older results due to incorrect path matching
+- Added unique ID generation to run directory names to prevent collisions and ensure each run is uniquely identifiable
+  - Directory names now include 6-character random lowercase alphanumeric suffix (e.g., `run_20251111_041253_a3b4c5`)
+  - Applies to both regular runs and combined results
+  - Ensures no confusion when multiple runs execute in the same second
 
 ## [0.1.1] - 2025-08-29
 

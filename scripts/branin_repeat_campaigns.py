@@ -12,6 +12,8 @@ import json
 import logging
 import os
 from pathlib import Path
+import random
+import string
 import sys
 import warnings
 
@@ -48,6 +50,19 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 obj1_name = "branin"
+
+
+def generate_unique_id(length=6):
+    """Generate a unique ID with lowercase letters and numbers.
+    
+    Args:
+        length: Length of the ID (default: 6)
+        
+    Returns:
+        A string of random lowercase letters and numbers
+    """
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
 
 
 def setup_logging(run_timestamp):
@@ -1102,8 +1117,9 @@ def combine_parallel_results(partial_results_dir):
 
     # Create output directory for combined results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = generate_unique_id()
     output_dir = (
-        Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}"
+        Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}_{unique_id}"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1345,12 +1361,13 @@ def main():
 
     # Create timestamped run directory (preserve all previous runs)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = generate_unique_id()
     base_dir = Path(__file__).parent / base_suffix
-    output_dir = base_dir / f"run_{timestamp}"
+    output_dir = base_dir / f"run_{timestamp}_{unique_id}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup logging (separate from results)
-    logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}")
+    logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}_{unique_id}")
     logger.info(
         f"=== Starting {'Smoke Test' if smoke_test else 'Exhaustive'} Branin Evaluation ==="
     )
