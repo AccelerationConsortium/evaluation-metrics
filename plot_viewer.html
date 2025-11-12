@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Branin Campaign Plots</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: white; }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 40px; }
+        img { max-width: 100%; border: 1px solid #ccc; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Branin Campaign Results - Smoke Test</h1>
+    
+    <h2>1. Convergence Curves (with Regret Analysis)</h2>
+    <p>This plot shows three panels comparing different initialization counts:</p>
+    <ul>
+        <li><b>Left:</b> Absolute convergence curves (raw objective values)</li>
+        <li><b>Middle:</b> Regret convergence curves (normalized, removes vertical offsets)</li>
+        <li><b>Right:</b> Final performance vs initialization count</li>
+    </ul>
+    <img src="convergence_curves.png" alt="Convergence Curves">
+    
+    <h2>2. Sanity Check Plots</h2>
+    <p>Performance analysis across different budgets and initialization counts:</p>
+    <img src="sanity_check_plots.png" alt="Sanity Check Plots">
+</body>
+</html>
