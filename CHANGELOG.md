@@ -15,6 +15,9 @@ All notable changes to this project will be documented in this file.
 - Added regret plots to convergence visualization to remove vertical offsets caused by different starting points
   - Regret is computed as (best_value - optimal_value) where optimal Branin value ≈ 0.397887
   - Three-panel plot now shows: absolute convergence, regret convergence, and final performance vs init count
+- Fixed parallel results combination in workflow: updated `combine_parallel_results` to handle merged artifact directory structure
+  - Now checks for both nested (`branin_exhaustive_evaluation_results/run_*`) and flattened (`run_*`) directory patterns
+  - Addresses issue where combined artifacts contained older results due to incorrect path matching
 
 ## [0.1.1] - 2025-08-29
 

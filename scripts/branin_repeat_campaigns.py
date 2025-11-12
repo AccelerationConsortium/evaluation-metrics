@@ -1060,9 +1060,17 @@ def combine_parallel_results(partial_results_dir):
         return
 
     # Find all run directories
-    run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_parallel_*"))
+    # When artifacts are merged, they can be in different structures:
+    # 1. branin_exhaustive_evaluation_results/run_* (from individual uploads)
+    # 2. run_* (if already flattened)
+    run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_*"))
+    if not run_dirs:
+        # Try alternative pattern for flattened structure
+        run_dirs = list(partial_dir.glob("run_*"))
     if not run_dirs:
         print(f"ERROR: No partial result directories found in {partial_results_dir}")
+        print(f"Checked patterns: branin_exhaustive_evaluation_results/run_* and run_*")
+        print(f"Directory contents: {list(partial_dir.glob('*'))}")
         return
 
     print(f"Found {len(run_dirs)} partial result directories")
