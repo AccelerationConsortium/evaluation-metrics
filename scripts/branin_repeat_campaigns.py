@@ -4,7 +4,7 @@ Run 10 repeat benchmark campaigns to determine optimal number of initialization 
 for Branin function. This script creates individual campaign plots and a composite
 analysis plot.
 
-Dummy change to trigger workflow.
+Trigger workflow to generate updated plots with all fixes applied.
 """
 
 import datetime
