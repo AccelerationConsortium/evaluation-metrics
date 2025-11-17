@@ -3,6 +3,8 @@
 Run 10 repeat benchmark campaigns to determine optimal number of initialization points
 for Branin function. This script creates individual campaign plots and a composite
 analysis plot.
+
+Re-trigger workflow with standalone combine script added.
 """
 
 import datetime
@@ -10,10 +12,13 @@ import json
 import logging
 import os
 from pathlib import Path
+import random
+import string
 import sys
 import warnings
 
 from ax.modelbridge.cross_validation import cross_validate
+from ax.modelbridge.factory import get_sobol
 from ax.modelbridge.generation_strategy import GenerationStep, GenerationStrategy
 from ax.modelbridge.registry import Models
 from ax.plot.diagnostic import interact_cross_validation_plotly
@@ -45,6 +50,19 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 obj1_name = "branin"
+
+
+def generate_unique_id(length=6):
+    """Generate a unique ID with lowercase letters and numbers.
+    
+    Args:
+        length: Length of the ID (default: 6)
+        
+    Returns:
+        A string of random lowercase letters and numbers
+    """
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
 
 
 def setup_logging(run_timestamp):
@@ -276,7 +294,39 @@ def calculate_iteration_metrics(ax_client, ax_client_cv, trial_index):
         return None
 
 
-def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None):
+def generate_sobol_points(max_points, seed=42):
+    """Generate Sobol points that can be reused across different init counts.
+    
+    Args:
+        max_points: Maximum number of Sobol points to generate (should be >= largest init_count)
+        seed: Random seed for Sobol sequence generation
+        
+    Returns:
+        List of parameter dictionaries with x1 and x2 values
+    """
+    # Create a temporary Ax client to get the search space
+    temp_client = AxClient(verbose_logging=False)
+    temp_client.create_experiment(
+        parameters=[
+            {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
+            {"name": "x2", "type": "range", "bounds": [0.0, 10.0]},
+        ],
+        objectives={obj1_name: ObjectiveProperties(minimize=True)},
+    )
+    
+    search_space = temp_client.experiment.search_space
+    
+    # Generate Sobol points using Ax's get_sobol
+    sobol_model = get_sobol(search_space, fallback_to_sample_polytope=True, seed=seed)
+    generation_result = sobol_model.gen(n=max_points)
+    
+    # Extract parameters from the generated arms
+    sobol_points = [arm.parameters for arm in generation_result.arms]
+    
+    return sobol_points
+
+
+def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None, init_points=None):
     """Run a single optimization campaign with metrics collection and return results.
 
     Args:
@@ -284,6 +334,8 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None
         num_trials: Total number of optimization trials to run
         num_init_trials: Number of initial Sobol trials before switching to GP
         seed: Random seed for reproducibility. If None, uses default seeding.
+        init_points: Optional list of dicts with pre-generated initialization points.
+                     If provided, these will be attached as trials instead of using Sobol.
     """
     logger = logging.getLogger("branin_evaluation")
     logger.info(
@@ -298,21 +350,33 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None
         logger.info(f"  Set random seeds: torch={seed}, numpy={seed}")
 
     # Create main ax client for optimization with proper generation strategy
-    # Use Sobol for initialization, then GPEI
-    gs = GenerationStrategy(
-        steps=[
-            GenerationStep(
-                model=Models.SOBOL,
-                num_trials=num_init_trials,
-                min_trials_observed=num_init_trials,
-                model_kwargs={"seed": seed} if seed is not None else {},
-            ),
-            GenerationStep(
-                model=Models.BOTORCH_MODULAR,
-                num_trials=-1,  # Continue indefinitely with GPEI
-            ),
-        ]
-    )
+    # If init_points provided, skip Sobol and go straight to GP
+    if init_points is not None and len(init_points) > 0:
+        # Use only GP model since we'll attach pre-generated init points
+        gs = GenerationStrategy(
+            steps=[
+                GenerationStep(
+                    model=Models.BOTORCH_MODULAR,
+                    num_trials=-1,  # Use GP for all trials
+                )
+            ]
+        )
+    else:
+        # Original behavior: Use Sobol for initialization, then GPEI
+        gs = GenerationStrategy(
+            steps=[
+                GenerationStep(
+                    model=Models.SOBOL,
+                    num_trials=num_init_trials,
+                    min_trials_observed=num_init_trials,
+                    model_kwargs={"seed": seed} if seed is not None else {},
+                ),
+                GenerationStep(
+                    model=Models.BOTORCH_MODULAR,
+                    num_trials=-1,  # Continue indefinitely with GPEI
+                ),
+            ]
+        )
 
     ax_client = AxClient(generation_strategy=gs, verbose_logging=False, random_seed=seed)
     ax_client.create_experiment(
@@ -363,8 +427,51 @@ def run_single_campaign(campaign_id, num_trials=30, num_init_trials=5, seed=None
         },
     }
 
-    # Run optimization trials
-    for trial_idx in range(num_trials):
+    # Attach pre-generated init points if provided
+    if init_points is not None and len(init_points) > 0:
+        logger.info(f"  Attaching {len(init_points)} pre-generated initialization points")
+        for i, point in enumerate(init_points):
+            # Attach the trial with pre-generated parameters
+            _, trial_index = ax_client.attach_trial(parameters=point)
+            
+            # Evaluate Branin function
+            objective_value = branin(point["x1"], point["x2"])
+            
+            # Complete trial
+            ax_client.complete_trial(trial_index=trial_index, raw_data=objective_value)
+            
+            # Store trial data
+            campaign_results["trials"].append(trial_index)
+            campaign_results["parameters"].append(point)
+            campaign_results["objective_values"].append(objective_value)
+            
+            # Calculate best value so far
+            if i == 0:
+                best_value = objective_value
+            else:
+                best_value = min(campaign_results["best_values"][-1], objective_value)
+            
+            campaign_results["best_values"].append(best_value)
+            
+            # No metrics for init points
+            if HAS_GPCHECK:
+                campaign_results["metrics"]["gp_r2"].append(np.nan)
+                campaign_results["metrics"]["ax_cv_r2"].append(np.nan)
+                campaign_results["metrics"]["rank_tau"].append(np.nan)
+                campaign_results["metrics"]["loo_nll"].append(np.nan)
+                campaign_results["metrics"]["gp_interval_score"].append(np.nan)
+                campaign_results["metrics"]["ax_cv_interval_score"].append(np.nan)
+                campaign_results["metrics"]["importance_std"].append(np.nan)
+        
+        # Adjust remaining trials
+        remaining_trials = num_trials - len(init_points)
+        logger.info(f"  Running {remaining_trials} GP-guided trials after initialization")
+    else:
+        remaining_trials = num_trials
+
+    # Run optimization trials (either all trials or remaining after init)
+    start_trial = len(init_points) if init_points else 0
+    for trial_idx in range(start_trial, num_trials):
         # Get next trial parameters
         parameters, trial_index = ax_client.get_next_trial()
 
@@ -968,9 +1075,17 @@ def combine_parallel_results(partial_results_dir):
         return
 
     # Find all run directories
-    run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_parallel_*"))
+    # When artifacts are merged, they can be in different structures:
+    # 1. branin_exhaustive_evaluation_results/run_* (from individual uploads)
+    # 2. run_* (if already flattened)
+    run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_*"))
+    if not run_dirs:
+        # Try alternative pattern for flattened structure
+        run_dirs = list(partial_dir.glob("run_*"))
     if not run_dirs:
         print(f"ERROR: No partial result directories found in {partial_results_dir}")
+        print(f"Checked patterns: branin_exhaustive_evaluation_results/run_* and run_*")
+        print(f"Directory contents: {list(partial_dir.glob('*'))}")
         return
 
     print(f"Found {len(run_dirs)} partial result directories")
@@ -1002,8 +1117,9 @@ def combine_parallel_results(partial_results_dir):
 
     # Create output directory for combined results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = generate_unique_id()
     output_dir = (
-        Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}"
+        Path(__file__).parent / "branin_exhaustive_evaluation_results" / f"run_combined_{timestamp}_{unique_id}"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1051,13 +1167,21 @@ def combine_parallel_results(partial_results_dir):
 
 
 def create_convergence_plots(all_results, output_dir, max_trials):
-    """Create convergence plots from parallel campaign results."""
+    """Create convergence plots from parallel campaign results.
+    
+    Now includes both absolute value plots and normalized/regret plots to handle
+    the fact that different init_counts start from the same initial points.
+    """
     # Extract data for plotting
     init_counts = sorted(all_results.keys())
 
     # Prepare data for plotting
     final_performances = []
     convergence_data = {}
+    regret_data = {}  # Store regret (value - optimal) for each curve
+
+    # Branin global optimum is approximately 0.397887
+    branin_optimal = 0.397887
 
     for init_count in init_counts:
         repeats = all_results[init_count]
@@ -1065,20 +1189,28 @@ def create_convergence_plots(all_results, output_dir, max_trials):
 
         # Store convergence curves for each repeat
         convergence_data[init_count] = []
+        regret_data[init_count] = []
 
         for repeat_data in repeats:
             if "best_values" in repeat_data:
                 best_values = repeat_data["best_values"]
                 final_values.append(best_values[-1])
                 convergence_data[init_count].append(best_values)
+                
+                # Calculate regret (distance from optimum)
+                regret = [val - branin_optimal for val in best_values]
+                regret_data[init_count].append(regret)
 
         if final_values:
             final_performances.append((init_count, np.mean(final_values), np.std(final_values)))
 
-    # Create convergence curves plot
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    # Create THREE subplots: convergence curves (absolute), regret curves, and final performance
+    fig = plt.figure(figsize=(18, 6))
+    ax1 = plt.subplot(1, 3, 1)
+    ax2 = plt.subplot(1, 3, 2)
+    ax3 = plt.subplot(1, 3, 3)
 
-    # Left plot: Convergence curves for selected init counts
+    # Left plot: Convergence curves for selected init counts (absolute values)
     selected_inits = [2, 5, 10, 15, 20, 25, 30]
     colors = plt.cm.viridis(np.linspace(0, 1, len(selected_inits)))
 
@@ -1111,15 +1243,45 @@ def create_convergence_plots(all_results, output_dir, max_trials):
     ax1.legend()
     ax1.set_yscale("log")
 
+    # Middle plot: Regret curves (normalized, removes effect of different starting points)
+    for i, init_count in enumerate(selected_inits):
+        if init_count in regret_data:
+            regrets = regret_data[init_count]
+            if regrets:
+                # Calculate mean and std across repeats
+                min_length = min(len(regret) for regret in regrets)
+                truncated_regrets = [regret[:min_length] for regret in regrets]
+                mean_regret = np.mean(truncated_regrets, axis=0)
+                std_regret = np.std(truncated_regrets, axis=0)
+
+                trials = range(1, min_length + 1)
+                ax2.plot(
+                    trials, mean_regret, color=colors[i], linewidth=2, label=f"Init {init_count}"
+                )
+                ax2.fill_between(
+                    trials,
+                    mean_regret - std_regret,
+                    mean_regret + std_regret,
+                    color=colors[i],
+                    alpha=0.2,
+                )
+
+    ax2.set_xlabel("Trial Number")
+    ax2.set_ylabel("Regret (Best - Optimal)")
+    ax2.set_title("Regret Curves by Initialization Count")
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+    ax2.set_yscale("log")
+
     # Right plot: Final performance vs init count
     if final_performances:
         init_vals, means, stds = zip(*final_performances)
-        ax2.errorbar(init_vals, means, yerr=stds, fmt="o-", capsize=5, capthick=2)
-        ax2.set_xlabel("Number of Initialization Points")
-        ax2.set_ylabel("Final Best Function Value")
-        ax2.set_title("Final Performance vs Initialization Count")
-        ax2.grid(True, alpha=0.3)
-        ax2.set_yscale("log")
+        ax3.errorbar(init_vals, means, yerr=stds, fmt="o-", capsize=5, capthick=2)
+        ax3.set_xlabel("Number of Initialization Points")
+        ax3.set_ylabel("Final Best Function Value")
+        ax3.set_title("Final Performance vs Initialization Count")
+        ax3.grid(True, alpha=0.3)
+        ax3.set_yscale("log")
 
     plt.tight_layout()
 
@@ -1199,12 +1361,13 @@ def main():
 
     # Create timestamped run directory (preserve all previous runs)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique_id = generate_unique_id()
     base_dir = Path(__file__).parent / base_suffix
-    output_dir = base_dir / f"run_{timestamp}"
+    output_dir = base_dir / f"run_{timestamp}_{unique_id}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup logging (separate from results)
-    logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}")
+    logger, logs_dir = setup_logging(f"{log_suffix}_{timestamp}_{unique_id}")
     logger.info(
         f"=== Starting {'Smoke Test' if smoke_test else 'Exhaustive'} Branin Evaluation ==="
     )
@@ -1219,6 +1382,22 @@ def main():
     # Storage for all results
     all_results = {}  # init_count -> list of campaign results
 
+    # Pre-generate Sobol points for each repeat to ensure consistency
+    # We generate the maximum number needed (30 points for init_count=30)
+    max_init_count = max(init_counts) if hasattr(init_counts, '__iter__') else max(list(init_counts))
+    logger.info(f"\n=== Pre-generating Sobol points (max={max_init_count}) ===")
+    
+    # Generate one set of Sobol points per repeat, using a fixed seed per repeat
+    # This ensures that all init_counts within the same repeat see the same initial points (just sliced)
+    repeat_sobol_points = {}
+    for repeat_id in range(1, num_repeats + 1):
+        # Use a fixed seed based only on repeat_id, not init_count
+        # This ensures repeatability and that all init_counts in this repeat share the same Sobol sequence
+        repeat_seed = 42 + repeat_id
+        sobol_points = generate_sobol_points(max_init_count, seed=repeat_seed)
+        repeat_sobol_points[repeat_id] = sobol_points
+        logger.info(f"  Generated {len(sobol_points)} Sobol points for repeat {repeat_id} (seed={repeat_seed})")
+
     # Run campaigns for each initialization count
     for init_count in init_counts:
         logger.info(f"\n=== Testing {init_count} initialization points ===")
@@ -1232,13 +1411,22 @@ def main():
         for repeat_id in range(1, num_repeats + 1):
             try:
                 campaign_id = f"{init_count}_{repeat_id}"
-                # Generate unique seed for this campaign using base seed + campaign number offset
-                # Base seed of 42 ensures reproducibility while offset guarantees unique seeds
-                campaign_number = (init_count - 2) * num_repeats + repeat_id
-                seed = 42 + campaign_number
+                
+                # Use a consistent seed for GP portion (based on repeat only, not init_count)
+                # This keeps the GP behavior consistent within a repeat
+                gp_seed = 42 + repeat_id
+                
+                # Slice the pre-generated Sobol points for this init_count
+                init_points = repeat_sobol_points[repeat_id][:init_count]
+                
+                logger.info(f"  Using first {init_count} Sobol points from repeat {repeat_id}")
 
                 campaign_results = run_single_campaign(
-                    campaign_id, num_trials=max_trials, num_init_trials=init_count, seed=seed
+                    campaign_id, 
+                    num_trials=max_trials, 
+                    num_init_trials=init_count, 
+                    seed=gp_seed,
+                    init_points=init_points
                 )
                 init_campaigns.append(campaign_results)
 

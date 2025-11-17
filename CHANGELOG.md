@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Fixed seeding issue in Branin repeat campaigns where each init_count used different Sobol sequences, causing high variance in initial objective values
+  - Pre-generate Sobol points with a fixed seed per repeat (seed = 42 + repeat_id)
+  - Slice the same Sobol sequence for different init_counts within each repeat
+  - This ensures all init_counts within a repeat start from the same initial points, just using different numbers of them
+  - Keeps GP seed consistent within each repeat for fair comparison
+- Modified `run_single_campaign` to accept pre-generated initialization points via `init_points` parameter
+- Added `generate_sobol_points` function to create reusable Sobol sequences using Ax's `get_sobol`
+- Added regret plots to convergence visualization to remove vertical offsets caused by different starting points
+  - Regret is computed as (best_value - optimal_value) where optimal Branin value ≈ 0.397887
+  - Three-panel plot now shows: absolute convergence, regret convergence, and final performance vs init count
+- Fixed parallel results combination in workflow: updated `combine_parallel_results` to handle merged artifact directory structure
+  - Now checks for both nested (`branin_exhaustive_evaluation_results/run_*`) and flattened (`run_*`) directory patterns
+  - Addresses issue where combined artifacts contained older results due to incorrect path matching
+- Added unique ID generation to run directory names to prevent collisions and ensure each run is uniquely identifiable
+  - Directory names now include 6-character random lowercase alphanumeric suffix (e.g., `run_20251111_041253_a3b4c5`)
+  - Applies to both regular runs and combined results
+  - Ensures no confusion when multiple runs execute in the same second
+- Added standalone script `combine_branin_parallel_results.py` to regenerate combined plots from partial results
+  - Allows re-generating visualizations without re-running the entire workflow
+  - Usage: `python combine_branin_parallel_results.py <partial_results_dir>`
+
 ## [0.1.1] - 2025-08-29
 
 This release captures the Ax cross-validation integration and plotting/export updates implemented in the Branin demonstration. See PR #9: "Implement Ax-platform cross-validation integration for iteration-by-iteration evaluation metrics with interval score and enhanced multi-axis visualization".
