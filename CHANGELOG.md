@@ -22,6 +22,9 @@ All notable changes to this project will be documented in this file.
   - Directory names now include 6-character random lowercase alphanumeric suffix (e.g., `run_20251111_041253_a3b4c5`)
   - Applies to both regular runs and combined results
   - Ensures no confusion when multiple runs execute in the same second
+- Added standalone script `combine_branin_parallel_results.py` to regenerate combined plots from partial results
+  - Allows re-generating visualizations without re-running the entire workflow
+  - Usage: `python combine_branin_parallel_results.py <partial_results_dir>`
 
 ## [0.1.1] - 2025-08-29
 
