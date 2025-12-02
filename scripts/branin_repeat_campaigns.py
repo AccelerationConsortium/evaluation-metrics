@@ -10,6 +10,7 @@ Re-trigger workflow with standalone combine script added.
 import datetime
 import json
 import logging
+import math
 import os
 from pathlib import Path
 import random
@@ -1060,11 +1061,19 @@ def create_composite_plot(all_campaigns, output_dir):
     return composite_path
 
 
-def combine_parallel_results(partial_results_dir):
+def combine_parallel_results(partial_results_dir, run_filter: str | None = None):
     """Combine partial results from parallel execution and generate final analysis.
 
     Args:
         partial_results_dir: Path to directory containing partial results from parallel jobs
+        run_filter: Optional substring to filter which run_* directories to include
+
+    Supports two directory layouts:
+    1. Parent directory containing raw per-run folders with ``init_*`` subdirectories holding
+       ``campaign_*.json`` (full detail).
+    2. Parent directory containing run folders that themselves only have an aggregated
+       ``exhaustive_evaluation_results.json`` (no raw campaign JSON). In this case we synthesize
+       pseudo campaign objects from the stored ``budget_analysis`` so downstream plotting works.
     """
     print("=== Combining Parallel Results ===")
     print(f"Reading from: {partial_results_dir}")
@@ -1080,11 +1089,15 @@ def combine_parallel_results(partial_results_dir):
     # 2. run_* (if already flattened)
     run_dirs = list(partial_dir.glob("branin_exhaustive_evaluation_results/run_*"))
     if not run_dirs:
-        # Try alternative pattern for flattened structure
         run_dirs = list(partial_dir.glob("run_*"))
+    # Allow user to pass a single run_* directory directly
+    if not run_dirs and partial_dir.name.startswith("run_"):
+        run_dirs = [partial_dir]
+    if run_filter:
+        run_dirs = [d for d in run_dirs if run_filter in d.name]
     if not run_dirs:
-        print(f"ERROR: No partial result directories found in {partial_results_dir}")
-        print(f"Checked patterns: branin_exhaustive_evaluation_results/run_* and run_*")
+        print(f"ERROR: No partial result directories found matching filter in {partial_results_dir}")
+        print(f"Run filter: {run_filter}")
         print(f"Directory contents: {list(partial_dir.glob('*'))}")
         return
 
@@ -1092,28 +1105,73 @@ def combine_parallel_results(partial_results_dir):
 
     # Collect all results
     all_results = {}
+    raw_campaigns = {}
+    aggregated_summaries = []
     max_trials = 30
 
     for run_dir in run_dirs:
         print(f"Processing: {run_dir.name}")
-        # Find all init_count subdirectories
         init_dirs = sorted(run_dir.glob("init_*"))
 
-        for init_dir in init_dirs:
-            init_count = int(init_dir.name.split("_")[1])
-            if init_count not in all_results:
-                all_results[init_count] = []
-
-            # Load all campaign JSON files
-            campaign_files = sorted(init_dir.glob("campaign_*.json"))
-            for campaign_file in campaign_files:
-                with open(campaign_file, "r") as f:
-                    campaign_data = json.load(f)
-                    all_results[init_count].append(campaign_data)
+        if init_dirs:
+            # Raw detailed structure: load each campaign
+            for init_dir in init_dirs:
+                init_count = int(init_dir.name.split("_")[1])
+                if init_count not in all_results:
+                    all_results[init_count] = []
+                if init_count not in raw_campaigns:
+                    raw_campaigns[init_count] = []
+                campaign_files = sorted(init_dir.glob("campaign_*.json"))
+                for campaign_file in campaign_files:
+                    with open(campaign_file, "r") as f:
+                        campaign_data = json.load(f)
+                        all_results[init_count].append(campaign_data)
+                        raw_campaigns[init_count].append(campaign_data)
+                        max_trials = max(
+                            max_trials, len(campaign_data.get("best_values", []))
+                        )
+        else:
+            # Aggregated-only structure: synthesize pseudo campaigns from exhaustive_evaluation_results.json
+            summary_file = run_dir / "exhaustive_evaluation_results.json"
+            if not summary_file.exists():
+                print(f"  Warning: {run_dir} has no init_* dirs or summary file; skipping")
+                continue
+            with open(summary_file, "r") as f:
+                summary = json.load(f)
+            budget_analysis = summary.get("budget_analysis", {})
+            aggregated_summaries.append(budget_analysis)
+            # Determine max_trials from parameters section if available
+            params = summary.get("parameters", {})
+            derived_max_trials = int(params.get("max_trials", 0)) or len(budget_analysis)
+            max_trials = max(max_trials, derived_max_trials)
+            summary_init_counts = set()
+            # budgets keys may be strings
+            for budget_key, init_dict in budget_analysis.items():
+                # Collect init counts appearing at any budget
+                for init_count_str in init_dict.keys():
+                    try:
+                        init_count = int(init_count_str)
+                    except ValueError:
+                        continue
+                    if init_count not in all_results:
+                        all_results[init_count] = []
+                    summary_init_counts.add(init_count)
+            # For each init_count build a pseudo campaign best_values curve using mean values at each budget
+            for init_count in summary_init_counts:
+                best_values_curve = []
+                for b in range(1, max_trials + 1):
+                    b_key = str(b)
+                    init_key = str(init_count)
+                    val = np.nan
+                    if b_key in budget_analysis and init_key in budget_analysis[b_key]:
+                        val = budget_analysis[b_key][init_key].get("mean", np.nan)
+                    best_values_curve.append(val)
+                pseudo_campaign = {"campaign_id": f"synthetic_{run_dir.name}_{init_count}", "best_values": best_values_curve}
+                all_results[init_count].append(pseudo_campaign)
 
     print(f"\nCollected results for {len(all_results)} init_counts")
     for init_count in sorted(all_results.keys()):
-        print(f"  init_count={init_count}: {len(all_results[init_count])} campaigns")
+        print(f"  init_count={init_count}: {len(all_results[init_count])} campaigns (raw or synthetic)")
 
     # Create output directory for combined results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1125,19 +1183,23 @@ def combine_parallel_results(partial_results_dir):
 
     # Generate budget analysis
     print("\n=== Analyzing combined results ===")
-    budget_analysis = analyze_budget_truncation(all_results, max_trials)
+    budget_summaries = []
+    if raw_campaigns:
+        raw_budget_analysis = analyze_budget_truncation(raw_campaigns, max_trials)
+        budget_summaries.append(raw_budget_analysis)
+    budget_summaries.extend(aggregated_summaries)
+    budget_analysis = combine_budget_analysis_summaries(budget_summaries) if budget_summaries else {}
 
     # Save comprehensive results
     results_path = output_dir / "exhaustive_evaluation_results.json"
+    num_repeats = infer_repeat_count(budget_analysis)
     with open(results_path, "w") as f:
         json.dump(
             {
                 "budget_analysis": budget_analysis,
                 "parameters": {
                     "init_counts": sorted(all_results.keys()),
-                    "num_repeats": (
-                        len(all_results[list(all_results.keys())[0]]) if all_results else 0
-                    ),
+                    "num_repeats": num_repeats,
                     "max_trials": max_trials,
                 },
             },
@@ -1150,7 +1212,7 @@ def combine_parallel_results(partial_results_dir):
     print("\n=== Generating final plots ===")
     try:
         sanity_plot_path = create_sanity_check_plots(
-            budget_analysis, output_dir, sorted(all_results.keys())
+            budget_analysis, output_dir, all_results
         )
         print(f"Generated sanity check plots: {sanity_plot_path}")
 
@@ -1547,6 +1609,100 @@ def analyze_budget_truncation(all_results, max_trials):
                 }
 
     return budget_analysis
+
+
+def combine_budget_analysis_summaries(budget_summaries):
+    """Merge multiple budget_analysis dictionaries using summary statistics."""
+    accumulator = {}
+
+    for summary in budget_summaries:
+        if not summary:
+            continue
+        for budget_key, init_dict in summary.items():
+            try:
+                budget_idx = int(budget_key)
+            except (TypeError, ValueError):
+                continue
+            budget_bucket = accumulator.setdefault(budget_idx, {})
+            for init_key, stats in init_dict.items():
+                try:
+                    init_idx = int(init_key)
+                except (TypeError, ValueError):
+                    continue
+                if not isinstance(stats, dict):
+                    continue
+                try:
+                    mean = float(stats.get("mean", float("nan")))
+                except (TypeError, ValueError):
+                    continue
+                if math.isnan(mean):
+                    continue
+                try:
+                    count = int(stats.get("count", 0))
+                except (TypeError, ValueError):
+                    count = 0
+                if count <= 0:
+                    continue
+                try:
+                    std = float(stats.get("std", 0.0) or 0.0)
+                except (TypeError, ValueError):
+                    std = 0.0
+
+                entry = budget_bucket.setdefault(
+                    init_idx,
+                    {"sum": 0.0, "sum_sq": 0.0, "count": 0, "min": None, "max": None},
+                )
+                entry["sum"] += mean * count
+                entry["sum_sq"] += (std**2 + mean**2) * count
+                entry["count"] += count
+
+                min_val = stats.get("min")
+                max_val = stats.get("max")
+                if min_val is not None:
+                    try:
+                        min_val = float(min_val)
+                        entry["min"] = min(entry["min"], min_val) if entry["min"] is not None else min_val
+                    except (TypeError, ValueError):
+                        pass
+                if max_val is not None:
+                    try:
+                        max_val = float(max_val)
+                        entry["max"] = max(entry["max"], max_val) if entry["max"] is not None else max_val
+                    except (TypeError, ValueError):
+                        pass
+
+    combined = {}
+    for budget_idx, init_dict in accumulator.items():
+        combined[budget_idx] = {}
+        for init_idx, stats in init_dict.items():
+            count = stats["count"]
+            if count == 0:
+                continue
+            mean = stats["sum"] / count
+            mean_sq = stats["sum_sq"] / count
+            variance = max(mean_sq - mean**2, 0.0)
+            combined[budget_idx][init_idx] = {
+                "mean": float(mean),
+                "std": float(math.sqrt(variance)),
+                "min": None if stats["min"] is None else float(stats["min"]),
+                "max": None if stats["max"] is None else float(stats["max"]),
+                "count": int(count),
+            }
+
+    return combined
+
+
+def infer_repeat_count(budget_analysis):
+    """Infer the approximate number of repeats from aggregated budget stats."""
+    if not budget_analysis:
+        return 0
+    try:
+        final_budget = max(budget_analysis.keys())
+    except ValueError:
+        return 0
+    final_stats = budget_analysis.get(final_budget, {})
+    counts = [stats.get("count", 0) for stats in final_stats.values() if stats.get("count", 0)]
+    return min(counts) if counts else 0
 
 
 def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):

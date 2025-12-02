@@ -28,13 +28,19 @@ def main():
     parser.add_argument(
         "partial_results_dir",
         type=str,
-        help="Path to directory containing partial results from parallel jobs",
+        help="Path to directory containing partial results from parallel jobs or a single run_* directory",
+    )
+    parser.add_argument(
+        "--run-filter",
+        type=str,
+        default=None,
+        help="Optional substring to select only run directories whose names contain it",
     )
     
     args = parser.parse_args()
     
     # Run the combine function
-    combine_parallel_results(args.partial_results_dir)
+    combine_parallel_results(args.partial_results_dir, run_filter=args.run_filter)
 
 
 if __name__ == "__main__":
