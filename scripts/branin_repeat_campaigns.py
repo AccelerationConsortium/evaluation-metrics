@@ -10,7 +10,6 @@ Re-trigger workflow with standalone combine script added.
 import datetime
 import json
 import logging
-import math
 import os
 from pathlib import Path
 import random
@@ -1185,14 +1184,19 @@ def combine_parallel_results(partial_results_dir, run_filter: str | None = None)
     print("\n=== Analyzing combined results ===")
     budget_summaries = []
     if raw_campaigns:
-        raw_budget_analysis = analyze_budget_truncation(raw_campaigns, max_trials)
-        budget_summaries.append(raw_budget_analysis)
+        budget_summaries.append(analyze_budget_truncation(raw_campaigns, max_trials))
     budget_summaries.extend(aggregated_summaries)
-    budget_analysis = combine_budget_analysis_summaries(budget_summaries) if budget_summaries else {}
+    if budget_summaries:
+        budget_analysis = combine_budget_analysis_summaries(budget_summaries)
+    else:
+        budget_analysis = analyze_budget_truncation(all_results, max_trials)
 
     # Save comprehensive results
     results_path = output_dir / "exhaustive_evaluation_results.json"
     num_repeats = infer_repeat_count(budget_analysis)
+    if not num_repeats and all_results:
+        sample_key = next(iter(all_results.keys()))
+        num_repeats = len(all_results[sample_key])
     with open(results_path, "w") as f:
         json.dump(
             {
@@ -1216,7 +1220,9 @@ def combine_parallel_results(partial_results_dir, run_filter: str | None = None)
         )
         print(f"Generated sanity check plots: {sanity_plot_path}")
 
-        convergence_plot_path = create_convergence_plots(all_results, output_dir, max_trials)
+        convergence_plot_path = create_convergence_plots(
+            all_results, output_dir, max_trials, budget_analysis
+        )
         print(f"Generated convergence plots: {convergence_plot_path}")
     except Exception as e:
         print(f"Error generating plots: {e}")
@@ -1228,12 +1234,17 @@ def combine_parallel_results(partial_results_dir, run_filter: str | None = None)
     print(f"Output directory: {output_dir}")
 
 
-def create_convergence_plots(all_results, output_dir, max_trials):
+def create_convergence_plots(all_results, output_dir, max_trials, budget_analysis=None):
     """Create convergence plots from parallel campaign results.
     
     Now includes both absolute value plots and normalized/regret plots to handle
     the fact that different init_counts start from the same initial points.
     """
+    normalized_budget = (
+        normalize_budget_analysis_keys(budget_analysis) if budget_analysis else None
+    )
+    final_budget_key = max(normalized_budget.keys()) if normalized_budget else None
+
     # Extract data for plotting
     init_counts = sorted(all_results.keys())
 
@@ -1263,8 +1274,21 @@ def create_convergence_plots(all_results, output_dir, max_trials):
                 regret = [val - branin_optimal for val in best_values]
                 regret_data[init_count].append(regret)
 
-        if final_values:
-            final_performances.append((init_count, np.mean(final_values), np.std(final_values)))
+        stats_entry = None
+        if final_budget_key is not None and normalized_budget:
+            stats_entry = normalized_budget.get(final_budget_key, {}).get(init_count)
+
+        if stats_entry:
+            # Use stored summary stats so aggregated-only runs keep their variance.
+            mean_val = stats_entry.get("mean", float("nan"))
+            std_val = stats_entry.get("std", 0.0)
+        elif final_values:
+            mean_val = np.mean(final_values)
+            std_val = np.std(final_values)
+        else:
+            continue
+
+        final_performances.append((init_count, mean_val, std_val))
 
     # Create THREE subplots: convergence curves (absolute), regret curves, and final performance
     fig = plt.figure(figsize=(18, 6))
@@ -1575,6 +1599,7 @@ def main():
 
     # Create sanity check plots
     create_sanity_check_plots(budget_analysis, output_dir, all_results)
+    create_convergence_plots(all_results, output_dir, max_trials, budget_analysis)
 
     logger.info("\n=== Evaluation Complete ===")
     logger.info(f"Tested init counts: {min(init_counts)}-{max(init_counts)}")
@@ -1611,31 +1636,43 @@ def analyze_budget_truncation(all_results, max_trials):
     return budget_analysis
 
 
-def combine_budget_analysis_summaries(budget_summaries):
-    """Merge multiple budget_analysis dictionaries using summary statistics."""
-    accumulator = {}
+def normalize_budget_analysis_keys(budget_analysis):
+    """Normalize budget_analysis keys to ints for easier downstream indexing."""
+    normalized = {}
+    if not budget_analysis:
+        return normalized
 
-    for summary in budget_summaries:
-        if not summary:
+    for budget_key, init_dict in budget_analysis.items():
+        try:
+            budget_idx = int(budget_key)
+        except (TypeError, ValueError):
             continue
-        for budget_key, init_dict in summary.items():
+        normalized[budget_idx] = {}
+        for init_key, stats in init_dict.items():
             try:
-                budget_idx = int(budget_key)
+                init_idx = int(init_key)
             except (TypeError, ValueError):
                 continue
+            normalized[budget_idx][init_idx] = stats
+
+    return normalized
+
+
+def combine_budget_analysis_summaries(budget_summaries):
+    """Combine multiple budget_analysis dictionaries using summary statistics."""
+    accumulator = {}
+    for summary in budget_summaries:
+        normalized = normalize_budget_analysis_keys(summary)
+        if not normalized:
+            continue
+        for budget_idx, init_dict in normalized.items():
             budget_bucket = accumulator.setdefault(budget_idx, {})
-            for init_key, stats in init_dict.items():
-                try:
-                    init_idx = int(init_key)
-                except (TypeError, ValueError):
-                    continue
-                if not isinstance(stats, dict):
-                    continue
+            for init_idx, stats in init_dict.items():
                 try:
                     mean = float(stats.get("mean", float("nan")))
                 except (TypeError, ValueError):
                     continue
-                if math.isnan(mean):
+                if np.isnan(mean):
                     continue
                 try:
                     count = int(stats.get("count", 0))
@@ -1661,13 +1698,17 @@ def combine_budget_analysis_summaries(budget_summaries):
                 if min_val is not None:
                     try:
                         min_val = float(min_val)
-                        entry["min"] = min(entry["min"], min_val) if entry["min"] is not None else min_val
+                        entry["min"] = (
+                            min(entry["min"], min_val) if entry["min"] is not None else min_val
+                        )
                     except (TypeError, ValueError):
                         pass
                 if max_val is not None:
                     try:
                         max_val = float(max_val)
-                        entry["max"] = max(entry["max"], max_val) if entry["max"] is not None else max_val
+                        entry["max"] = (
+                            max(entry["max"], max_val) if entry["max"] is not None else max_val
+                        )
                     except (TypeError, ValueError):
                         pass
 
@@ -1683,7 +1724,7 @@ def combine_budget_analysis_summaries(budget_summaries):
             variance = max(mean_sq - mean**2, 0.0)
             combined[budget_idx][init_idx] = {
                 "mean": float(mean),
-                "std": float(math.sqrt(variance)),
+                "std": float(np.sqrt(variance)),
                 "min": None if stats["min"] is None else float(stats["min"]),
                 "max": None if stats["max"] is None else float(stats["max"]),
                 "count": int(count),
@@ -1693,37 +1734,39 @@ def combine_budget_analysis_summaries(budget_summaries):
 
 
 def infer_repeat_count(budget_analysis):
-    """Infer the approximate number of repeats from aggregated budget stats."""
-    if not budget_analysis:
+    """Infer approximate repeat count from a budget_analysis dictionary."""
+    normalized = normalize_budget_analysis_keys(budget_analysis)
+    if not normalized:
         return 0
-    try:
-        final_budget = max(budget_analysis.keys())
-    except ValueError:
-        return 0
-    final_stats = budget_analysis.get(final_budget, {})
-    counts = [stats.get("count", 0) for stats in final_stats.values() if stats.get("count", 0)]
+    final_budget = max(normalized.keys())
+    counts = [
+        stats.get("count", 0)
+        for stats in normalized.get(final_budget, {}).values()
+        if stats.get("count", 0)
+    ]
     return min(counts) if counts else 0
 
 
-def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
+def create_sanity_check_plots(budget_analysis, output_dir, all_results=None, focus_budget=10):
     """Create simple plots for sanity checking results."""
 
-    # Plot 1: Final performance (budget=30) vs init count
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    normalized_budget = normalize_budget_analysis_keys(budget_analysis)
+    if not normalized_budget:
+        print("Warning: No budget analysis data available; skipping sanity plots")
+        return None
 
-    # Extract data for final budget
-    final_budget = max(budget_analysis.keys())
-    init_counts = []
-    mean_performance = []
-    std_performance = []
+    budgets_available = sorted(normalized_budget.keys())
+    init_counts_available = sorted(
+        {init_count for init_dict in normalized_budget.values() for init_count in init_dict.keys()}
+    )
 
-    for init_count in sorted(budget_analysis[final_budget].keys()):
-        data = budget_analysis[final_budget][init_count]
-        init_counts.append(init_count)
-        mean_performance.append(data["mean"])
-        std_performance.append(data["std"])
+    final_budget = min(budgets_available[-1], int(focus_budget))
+    final_stats = normalized_budget.get(final_budget, {})
+    init_counts = sorted(final_stats.keys())
+    mean_performance = [final_stats[i]["mean"] for i in init_counts]
+    std_performance = [final_stats[i]["std"] for i in init_counts]
 
-    # Left plot: Mean performance with error bars
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     ax1.errorbar(
         init_counts,
         mean_performance,
@@ -1734,34 +1777,45 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
         linewidth=2,
     )
     ax1.set_xlabel("Number of Initialization Points")
-    ax1.set_ylabel("Final Best Objective Value")
+    ax1.set_ylabel("Best Objective Value")
     ax1.set_title(f"Final Performance vs Init Count (Budget={final_budget})")
     ax1.grid(True, alpha=0.3)
 
-    # Right plot: Performance across different budgets (heatmap-style)
-    budgets = [5, 10, 15, 20, 25, 30]  # Sample of budgets for clarity
-    init_sample = [2, 5, 10, 15, 20, 25, 30]  # Sample of init counts
+    sampled_budgets = [5, 10, 15, 20, 25, 30]
+    heatmap_budgets = [b for b in sampled_budgets if b in budgets_available]
+    if not heatmap_budgets:
+        heatmap_budgets = [final_budget]
 
-    performance_matrix = []
-    for budget in budgets:
-        if budget in budget_analysis:
-            row = []
-            for init_count in init_sample:
-                if init_count in budget_analysis[budget]:
-                    row.append(budget_analysis[budget][init_count]["mean"])
-                else:
-                    row.append(np.nan)
-            performance_matrix.append(row)
+    sampled_inits = [2, 5, 10, 15, 20, 25, 30]
+    init_sample = [i for i in sampled_inits if i in init_counts_available]
+    if not init_sample:
+        init_sample = init_counts_available
 
-    if performance_matrix:
-        im = ax2.imshow(performance_matrix, cmap="viridis_r", aspect="auto")
+    mean_matrix = []
+    std_matrix = []
+    for budget in heatmap_budgets:
+        mean_row = []
+        std_row = []
+        for init_count in init_sample:
+            stats = normalized_budget.get(budget, {}).get(init_count)
+            if stats:
+                mean_row.append(stats["mean"])
+                std_row.append(stats["std"])
+            else:
+                mean_row.append(np.nan)
+                std_row.append(np.nan)
+        mean_matrix.append(mean_row)
+        std_matrix.append(std_row)
+
+    if mean_matrix:
+        im = ax2.imshow(mean_matrix, cmap="viridis_r", aspect="auto")
         ax2.set_xlabel("Init Count")
         ax2.set_ylabel("Budget")
         ax2.set_title("Mean Performance Across Budgets")
         ax2.set_xticks(range(len(init_sample)))
         ax2.set_xticklabels(init_sample)
-        ax2.set_yticks(range(len(budgets)))
-        ax2.set_yticklabels(budgets)
+        ax2.set_yticks(range(len(heatmap_budgets)))
+        ax2.set_yticklabels(heatmap_budgets)
         plt.colorbar(im, ax=ax2, label="Mean Best Objective")
 
     plt.tight_layout()
@@ -1770,14 +1824,109 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
     plt.close()
     print(f"Saved sanity check plots: {plot_path}")
 
+    if std_matrix:
+        fig_std, ax_std = plt.subplots(1, 1, figsize=(8, 6))
+        im_std = ax_std.imshow(std_matrix, cmap="magma", aspect="auto")
+        ax_std.set_xlabel("Init Count")
+        ax_std.set_ylabel("Budget")
+        ax_std.set_title("Std Dev Across Budgets")
+        ax_std.set_xticks(range(len(init_sample)))
+        ax_std.set_xticklabels(init_sample)
+        ax_std.set_yticks(range(len(heatmap_budgets)))
+        ax_std.set_yticklabels(heatmap_budgets)
+        plt.colorbar(im_std, ax=ax_std, label="Std Dev of Best Objective")
+        std_heatmap_path = output_dir / "sanity_check_std_heatmap.png"
+        plt.tight_layout()
+        plt.savefig(str(std_heatmap_path), dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved std-dev heatmap: {std_heatmap_path}")
+
+    budgets_full = budgets_available
+    init_counts_full = init_counts_available
+
+    if budgets_full and init_counts_full:
+        mean_matrix_full = np.full((len(budgets_full), len(init_counts_full)), np.nan)
+        std_matrix_full = np.full_like(mean_matrix_full, np.nan)
+        for b_idx, budget in enumerate(budgets_full):
+            init_dict = normalized_budget.get(budget, {})
+            for i_idx, init_count in enumerate(init_counts_full):
+                stats = init_dict.get(init_count)
+                if stats:
+                    mean_matrix_full[b_idx, i_idx] = stats["mean"]
+                    std_matrix_full[b_idx, i_idx] = stats["std"]
+
+        def _set_full_ticks(axis):
+            if len(budgets_full) > 15:
+                step = max(1, len(budgets_full) // 10)
+                axis.set_yticks(range(0, len(budgets_full), step))
+                axis.set_yticklabels(budgets_full[::step])
+            else:
+                axis.set_yticks(range(len(budgets_full)))
+                axis.set_yticklabels(budgets_full)
+            axis.set_xticks(range(len(init_counts_full)))
+            axis.set_xticklabels(init_counts_full, rotation=45)
+
+        fig_mean_full, ax_mean_full = plt.subplots(1, 1, figsize=(12, 8))
+        im_mean_full = ax_mean_full.imshow(mean_matrix_full, cmap="viridis_r", aspect="auto")
+        _set_full_ticks(ax_mean_full)
+        ax_mean_full.set_xlabel("Init Count")
+        ax_mean_full.set_ylabel("Budget")
+        ax_mean_full.set_title("Mean Performance (All Budgets)")
+        plt.colorbar(im_mean_full, ax=ax_mean_full, label="Mean Best Objective")
+        mean_full_path = output_dir / "sanity_check_heatmap_mean_full.png"
+        plt.tight_layout()
+        plt.savefig(str(mean_full_path), dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved full-resolution mean heatmap: {mean_full_path}")
+
+        fig_std_full, ax_std_full = plt.subplots(1, 1, figsize=(12, 8))
+        im_std_full = ax_std_full.imshow(std_matrix_full, cmap="magma", aspect="auto")
+        _set_full_ticks(ax_std_full)
+        ax_std_full.set_xlabel("Init Count")
+        ax_std_full.set_ylabel("Budget")
+        ax_std_full.set_title("Std Dev Across Budgets (All)")
+        plt.colorbar(im_std_full, ax=ax_std_full, label="Std Dev of Best Objective")
+        std_full_path = output_dir / "sanity_check_heatmap_std_full.png"
+        plt.tight_layout()
+        plt.savefig(str(std_full_path), dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved full-resolution std heatmap: {std_full_path}")
+
+    multi_budget_candidates = [5, 10, 20, 30]
+    multi_budgets = [b for b in multi_budget_candidates if b in budgets_available]
+    if len(multi_budgets) >= 2:
+        fig_multi, ax_multi = plt.subplots(1, 1, figsize=(10, 6))
+        for budget in multi_budgets:
+            stats_map = normalized_budget.get(budget, {})
+            init_vals = sorted(stats_map.keys())
+            if not init_vals:
+                continue
+            means = [stats_map[i]["mean"] for i in init_vals]
+            ax_multi.plot(
+                init_vals,
+                means,
+                marker="o",
+                linewidth=2,
+                label=f"Budget {budget}",
+            )
+        ax_multi.set_xlabel("Number of Initialization Points")
+        ax_multi.set_ylabel("Best Objective Value")
+        ax_multi.set_title("Final Performance vs Init Count (Multiple Budgets)")
+        ax_multi.grid(True, alpha=0.3)
+        ax_multi.legend()
+        multi_path = output_dir / "final_performance_vs_init_multi_budget.png"
+        plt.tight_layout()
+        plt.savefig(str(multi_path), dpi=150, bbox_inches="tight")
+        plt.close()
+        print(f"Saved multi-budget performance plot: {multi_path}")
+
     # Plot 2: Simple convergence curves for different init counts
     if all_results is None:
         print("Warning: all_results not provided, skipping convergence curves")
-        return
+        return plot_path
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
 
-    # Show convergence for a few representative init counts
     representative_inits = [2, 5, 10, 15, 20, 30]
     colors = plt.cm.get_cmap("tab10")(np.linspace(0, 1, len(representative_inits)))
 
@@ -1785,9 +1934,9 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
         if init_count not in all_results or not all_results[init_count]:
             continue
 
-        # Average best_values across repeats for this init count
         max_len = max(len(campaign["best_values"]) for campaign in all_results[init_count])
-        avg_curve = []
+        mean_curve = []
+        std_curve = []
 
         for trial_idx in range(max_len):
             trial_values = []
@@ -1795,17 +1944,29 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
                 if len(campaign["best_values"]) > trial_idx:
                     trial_values.append(campaign["best_values"][trial_idx])
             if trial_values:
-                avg_curve.append(np.mean(trial_values))
+                trial_arr = np.array(trial_values)
+                mean_curve.append(np.mean(trial_arr))
+                std_curve.append(np.std(trial_arr))
 
-        if avg_curve:
+        if mean_curve:
+            trials = np.arange(1, len(mean_curve) + 1)
+            mean_arr = np.array(mean_curve)
+            std_arr = np.array(std_curve)
             ax.plot(
-                range(1, len(avg_curve) + 1),
-                avg_curve,
+                trials,
+                mean_arr,
                 color=colors[i],
                 linewidth=2,
                 marker="o",
                 markersize=4,
                 label=f"Init={init_count}",
+            )
+            ax.fill_between(
+                trials,
+                mean_arr - std_arr,
+                mean_arr + std_arr,
+                color=colors[i],
+                alpha=0.15,
             )
 
     ax.set_xlabel("Trial Number")
@@ -1815,9 +1976,12 @@ def create_sanity_check_plots(budget_analysis, output_dir, all_results=None):
     ax.legend()
 
     convergence_path = output_dir / "convergence_curves.png"
+    plt.tight_layout()
     plt.savefig(str(convergence_path), dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved convergence curves: {convergence_path}")
+
+    return plot_path
 
 
 # Remove unused global variable
