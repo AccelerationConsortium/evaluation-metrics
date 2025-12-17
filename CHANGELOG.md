@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Hartmann6 benchmark evaluation infrastructure parallel to Branin
+  - Created `hartmann6_repeat_campaigns.py` for 6-dimensional Hartmann6 function optimization
+  - Implemented 6D search space (all parameters in [0, 1])
+  - Hartmann6 global minimum ≈ -3.32237 at x* ≈ (0.20169, 0.15001, 0.476874, 0.275332, 0.311652, 0.6573)
+  - Increased default num_repeats from 5 to 10 for better statistical power
+  - Created GitHub workflow `hartmann6_campaigns_smoke_test.yaml` with parallel execution across 15 matrix jobs
+  - Created standalone combine script `combine_hartmann6_parallel_results.py`
+  - Maintains same graph types and visualization structure as Branin evaluation
+  - Results saved in timestamped directories under `hartmann6_exhaustive_evaluation_results/`
+
 ### Fixed
 - Fixed seeding issue in Branin repeat campaigns where each init_count used different Sobol sequences, causing high variance in initial objective values
   - Pre-generate Sobol points with a fixed seed per repeat (seed = 42 + repeat_id)
