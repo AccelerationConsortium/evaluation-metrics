@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Hartmann6 benchmark evaluation infrastructure parallel to Branin
+  - Created `hartmann6_repeat_campaigns.py` for 6-dimensional Hartmann6 function optimization
+  - Implemented 6D search space (all parameters in [0, 1])
+  - Hartmann6 global minimum ≈ -3.32237 at x* ≈ (0.20169, 0.15001, 0.476874, 0.275332, 0.311652, 0.6573)
+  - Increased default num_repeats from 5 to 10 for better statistical power
+  - Created GitHub workflow `hartmann6_campaigns_smoke_test.yaml` with parallel execution across 15 matrix jobs
+  - Created standalone combine script `combine_hartmann6_parallel_results.py`
+  - Maintains same graph types and visualization structure as Branin evaluation
+  - Results saved in timestamped directories under `hartmann6_exhaustive_evaluation_results/`
+
+### Fixed
+- Fixed seeding issue in Branin repeat campaigns where each init_count used different Sobol sequences, causing high variance in initial objective values
+  - Pre-generate Sobol points with a fixed seed per repeat (seed = 42 + repeat_id)
+  - Slice the same Sobol sequence for different init_counts within each repeat
+  - This ensures all init_counts within a repeat start from the same initial points, just using different numbers of them
+  - Keeps GP seed consistent within each repeat for fair comparison
+- Modified `run_single_campaign` to accept pre-generated initialization points via `init_points` parameter
+- Added `generate_sobol_points` function to create reusable Sobol sequences using Ax's `get_sobol`
+- Added regret plots to convergence visualization to remove vertical offsets caused by different starting points
+  - Regret is computed as (best_value - optimal_value) where optimal Branin value ≈ 0.397887
+  - Three-panel plot now shows: absolute convergence, regret convergence, and final performance vs init count
+- Fixed parallel results combination in workflow: updated `combine_parallel_results` to handle merged artifact directory structure
+  - Now checks for both nested (`branin_exhaustive_evaluation_results/run_*`) and flattened (`run_*`) directory patterns
+  - Addresses issue where combined artifacts contained older results due to incorrect path matching
+- Added unique ID generation to run directory names to prevent collisions and ensure each run is uniquely identifiable
+  - Directory names now include 6-character random lowercase alphanumeric suffix (e.g., `run_20251111_041253_a3b4c5`)
+  - Applies to both regular runs and combined results
+  - Ensures no confusion when multiple runs execute in the same second
+- Added standalone script `combine_branin_parallel_results.py` to regenerate combined plots from partial results
+  - Allows re-generating visualizations without re-running the entire workflow
+  - Usage: `python combine_branin_parallel_results.py <partial_results_dir>`
+
 ## [0.1.1] - 2025-08-29
 
 This release captures the Ax cross-validation integration and plotting/export updates implemented in the Branin demonstration. See PR #9: "Implement Ax-platform cross-validation integration for iteration-by-iteration evaluation metrics with interval score and enhanced multi-axis visualization".

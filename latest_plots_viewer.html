@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Latest Branin Campaign Results - Nov 16-17, 2025</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: white; }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 40px; }
+        h3 { color: #888; margin-top: 20px; }
+        img { max-width: 100%; border: 1px solid #ccc; margin: 10px 0; }
+        .info { background: #f5f5f5; padding: 15px; border-left: 4px solid #007acc; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Latest Branin Campaign Results</h1>
+    <div class="info">
+        <strong>Workflow Run:</strong> 19413980843<br>
+        <strong>Completed:</strong> November 17, 2025 at 00:15:51 UTC<br>
+        <strong>Duration:</strong> ~26 minutes<br>
+        <strong>Status:</strong> ✓ Success<br>
+        <strong>Unique Run IDs:</strong> Smoke test (v6lrfo), Combined (6chxqq)
+    </div>
+    
+    <h2>Smoke Test Results</h2>
+    <p>Quick validation with 2 init counts (2 and 5), 2 repeats, 5 trials</p>
+    
+    <h3>1. Convergence Curves</h3>
+    <img src="latest_smoke_convergence.png" alt="Smoke Test Convergence">
+    
+    <h3>2. Sanity Check Plots</h3>
+    <img src="latest_smoke_sanity.png" alt="Smoke Test Sanity Check">
+    
+    <h2>Combined Results - Final Sanity Check</h2>
+    <p>Combined from all 15 parallel jobs covering init counts 2-30</p>
+    <img src="latest_combined_sanity.png" alt="Combined Sanity Check">
+    
+    <div class="info">
+        <strong>Note:</strong> The convergence curves plot for the combined full results appears to be missing from this run's artifacts. 
+        The combined results include sanity check plots showing performance across all initialization counts.
+    </div>
+</body>
+</html>
